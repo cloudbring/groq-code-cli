@@ -71,13 +71,16 @@ vi.mock('../../hooks/useTokenMetrics.js', () => ({
 }));
 
 // Mock ink hooks
-const mockUseInput = vi.fn();
+let inputCallback: any = null;
 const mockUseApp = vi.fn();
 
 vi.mock('ink', () => ({
   Box: ({ children }: any) => <div data-testid="box">{children}</div>,
   Text: ({ children }: any) => <span data-testid="text">{children}</span>,
-  useInput: (callback: any) => mockUseInput.mockImplementation(callback),
+  useInput: (callback: any) => {
+    inputCallback = callback;
+    return () => {};
+  },
   useApp: () => mockUseApp()
 }));
 
@@ -94,6 +97,7 @@ describe('Chat', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    inputCallback = null;
 
     mockAgent = {
       setApiKey: vi.fn(),
@@ -196,8 +200,8 @@ describe('Chat', () => {
     it('should exit on Ctrl+C', () => {
       render(<Chat agent={mockAgent} />);
       
-      const inputHandler = mockUseInput.mock.calls[0][0];
-      inputHandler('c', { ctrl: true });
+      expect(inputCallback).toBeDefined();
+      inputCallback('c', { ctrl: true });
       
       expect(mockExit).toHaveBeenCalled();
     });
@@ -205,8 +209,8 @@ describe('Chat', () => {
     it('should toggle auto-approve on Shift+Tab', () => {
       render(<Chat agent={mockAgent} />);
       
-      const inputHandler = mockUseInput.mock.calls[0][0];
-      inputHandler('', { shift: true, tab: true });
+      expect(inputCallback).toBeDefined();
+      inputCallback('', { shift: true, tab: true });
       
       expect(mockAgentHookReturn.toggleAutoApprove).toHaveBeenCalled();
     });
@@ -217,8 +221,8 @@ describe('Chat', () => {
       
       render(<Chat agent={mockAgent} />);
       
-      const inputHandler = mockUseInput.mock.calls[0][0];
-      inputHandler('', { escape: true });
+      expect(inputCallback).toBeDefined();
+      inputCallback('', { escape: true });
       
       // Should reject the pending approval
       expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false);
@@ -231,8 +235,8 @@ describe('Chat', () => {
       
       render(<Chat agent={mockAgent} />);
       
-      const inputHandler = mockUseInput.mock.calls[0][0];
-      inputHandler('', { escape: true });
+      expect(inputCallback).toBeDefined();
+      inputCallback('', { escape: true });
       
       expect(mockAgentHookReturn.interruptRequest).toHaveBeenCalled();
     });

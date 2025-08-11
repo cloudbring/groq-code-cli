@@ -1,0 +1,196 @@
+
+> groq-code-cli@1.0.2 test:coverage
+> vitest run --coverage
+
+
+ RUN  v3.2.4 /Users/e/dev/github.com/cloudbring/groq-code-cli
+      Coverage enabled with v8
+
+ ❯ src/core/agent.test.ts (33 tests | 2 failed) 67ms
+   ✓ Agent > Agent.create > should create agent with provided model 2ms
+   ✓ Agent > Agent.create > should use default model from config if available 0ms
+   ✓ Agent > Agent.create > should use provided model if no default in config 0ms
+   ✓ Agent > Agent.create > should accept custom system message 0ms
+   ✓ Agent > API Key Management > should set API key 2ms
+   ✓ Agent > API Key Management > should save API key 1ms
+   ✓ Agent > API Key Management > should clear API key 0ms
+   ✓ Agent > Model Management > should set and get current model 0ms
+   ✓ Agent > Model Management > should update system message when model changes 1ms
+   ✓ Agent > Session Management > should set session auto approve 1ms
+   ✓ Agent > Session Management > should clear history 0ms
+   ✓ Agent > Session Management > should set tool callbacks 1ms
+   ✓ Agent > Session Management > should handle interrupt 1ms
+   ✓ Agent > Chat Functionality > should throw error when no API key available 1ms
+   ✓ Agent > Chat Functionality > should use API key from environment variable 2ms
+   ✓ Agent > Chat Functionality > should use API key from config file when env var not available 1ms
+   ✓ Agent > Chat Functionality > should handle simple chat without tools 1ms
+   ✓ Agent > Chat Functionality > should handle chat with reasoning 1ms
+   ✓ Agent > Chat Functionality > should handle tool calls 4ms
+   ✓ Agent > Chat Functionality > should handle tool call approval 2ms
+   ✓ Agent > Chat Functionality > should handle tool call rejection 1ms
+   ✓ Agent > Chat Functionality > should handle session auto approval 4ms
+   ✓ Agent > Chat Functionality > should handle read-before-edit validation failure 3ms
+   × Agent > Chat Functionality > should handle truncated tool arguments 13ms
+     → expected "spy" to be called with arguments: [ 'read_file', ObjectContaining{…} ][90m
+
+Number of calls: [1m0[22m
+[39m
+   ✓ Agent > Chat Functionality > should handle API errors gracefully 2ms
+   ✓ Agent > Chat Functionality > should handle 401 API errors by throwing immediately 2ms
+   ✓ Agent > Chat Functionality > should handle max iterations with user continuation 4ms
+   ✓ Agent > Chat Functionality > should handle interruption during chat 2ms
+   ✓ Agent > Chat Functionality > should strip repo_browser prefix from tool names 4ms
+   × Agent > Error Handling > should handle tool execution errors 4ms
+     → expected "spy" to be called with arguments: [ 'read_file', ObjectContaining{…} ][90m
+
+Number of calls: [1m0[22m
+[39m
+   ✓ Agent > Error Handling > should handle missing Groq client 1ms
+   ✓ Agent > Debug Functionality > should create agent with debug enabled 1ms
+   ✓ Agent > Debug Functionality > should handle debug logging without errors 1ms
+ ❯ src/ui/components/input-overlays/Login.test.tsx (23 tests | 14 failed) 167ms
+   ✓ Login > rendering > should render login form 22ms
+   ✓ Login > rendering > should render cursor 4ms
+   × Login > rendering > should render empty API key field initially 45ms
+     → expected 'Login with Groq API Key' to contain 'API Key:'
+   × Login > input handling > should handle character input 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should handle backspace 10ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should handle delete key 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should handle enter key with valid input 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should handle enter key with empty input 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should handle escape key 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should handle ctrl+c 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should ignore meta key combinations 1ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > input handling > should ignore ctrl key combinations (except ctrl+c) 16ms
+     → Cannot read properties of undefined (reading '0')
+   ✓ Login > API key display > should mask API key with asterisks 2ms
+   ✓ Login > API key display > should show ellipsis for long API keys 10ms
+   ✓ Login > API key display > should limit asterisk display to 20 characters 1ms
+   × Login > form validation > should call onSubmit with trimmed API key 3ms
+     → Cannot read properties of undefined (reading '0')
+   × Login > form validation > should not submit empty or whitespace-only API key 2ms
+     → Cannot read properties of undefined (reading '0')
+   ✓ Login > accessibility and usability > should provide clear instructions 7ms
+   ✓ Login > accessibility and usability > should have underlined link to console 2ms
+   ✓ Login > accessibility and usability > should have proper visual hierarchy 4ms
+   ✓ Login > component lifecycle > should initialize with empty API key 10ms
+   × Login > component lifecycle > should handle multiple re-renders 14ms
+     → expected "spy" to be called at least once
+   × Login > component lifecycle > should handle prop changes 5ms
+     → expected "spy" to be called at least once
+ ✓ src/ui/hooks/useTokenMetrics.test.ts (33 tests) 170ms
+ ❯ src/ui/components/input-overlays/ModelSelector.test.tsx (30 tests | 1 failed) 258ms
+   ✓ ModelSelector > rendering > should render model selector with title 31ms
+   ✓ ModelSelector > rendering > should render all available models 3ms
+   ✓ ModelSelector > rendering > should show pricing information link 29ms
+   ✓ ModelSelector > rendering > should highlight first model by default 5ms
+   ✓ ModelSelector > rendering > should show current model when provided 8ms
+   ✓ ModelSelector > rendering > should select current model when provided 2ms
+   ✓ ModelSelector > rendering > should show descriptions for models that have them 3ms
+   ✓ ModelSelector > navigation > should handle up arrow navigation 2ms
+   ✓ ModelSelector > navigation > should handle down arrow navigation 3ms
+   ✓ ModelSelector > navigation > should not go above first model 2ms
+   ✓ ModelSelector > navigation > should not go below last model 3ms
+   ✓ ModelSelector > navigation > should wrap navigation correctly at boundaries 16ms
+   ✓ ModelSelector > selection and submission > should handle enter key to submit 2ms
+   × ModelSelector > selection and submission > should submit correct model when selection changes 12ms
+     → expected "spy" to be called with arguments: [ 'openai/gpt-oss-120b' ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[32m-   "openai/gpt-oss-120b",[90m
+[31m+   "moonshotai/kimi-k2-instruct",[90m
+[2m  ][22m
+[39m[90m
+
+Number of calls: [1m1[22m
+[39m
+   ✓ ModelSelector > selection and submission > should handle escape key to cancel 32ms
+   ✓ ModelSelector > selection and submission > should handle ctrl+c to cancel 11ms
+   ✓ ModelSelector > model information > should display model descriptions when available 4ms
+   ✓ ModelSelector > model information > should handle models without descriptions 12ms
+   ✓ ModelSelector > model information > should show current model indicator 2ms
+   ✓ ModelSelector > initialization > should initialize with first model when no current model provided 3ms
+   ✓ ModelSelector > initialization > should initialize with current model when provided 3ms
+   ✓ ModelSelector > initialization > should fallback to first model for unknown current model 11ms
+   ✓ ModelSelector > visual feedback > should show selection indicator 12ms
+   ✓ ModelSelector > visual feedback > should have proper visual hierarchy 5ms
+   ✓ ModelSelector > visual feedback > should warn about chat clearing 4ms
+   ✓ ModelSelector > accessibility > should provide clear instructions 9ms
+   ✓ ModelSelector > accessibility > should have underlined pricing link 4ms
+   ✓ ModelSelector > edge cases > should handle empty model list gracefully 5ms
+   ✓ ModelSelector > edge cases > should handle rapid navigation 9ms
+   ✓ ModelSelector > edge cases > should handle multiple renders 7ms
+ ❯ src/ui/hooks/useAgent.test.ts (32 tests | 9 failed) 272ms
+   ✓ useAgent > initial state > should initialize with correct default values 29ms
+   ✓ useAgent > initial state > should provide all required methods 3ms
+   ✓ useAgent > sendMessage > should add user message and call agent 23ms
+   ✓ useAgent > sendMessage > should not send message if already processing 1ms
+   ✓ useAgent > sendMessage > should handle chat errors gracefully 3ms
+   ✓ useAgent > sendMessage > should handle API errors with status and error details 5ms
+   ✓ useAgent > sendMessage > should ignore abort errors 2ms
+   × useAgent > tool execution callbacks > should handle onThinkingText callback 44ms
+     → expected undefined to be defined
+   × useAgent > tool execution callbacks > should handle onFinalMessage callback 4ms
+     → expected undefined to be defined
+   × useAgent > tool execution callbacks > should handle onToolStart callback 4ms
+     → expected null not to be null
+   × useAgent > tool execution callbacks > should handle onToolEnd callback with success 5ms
+     → expected undefined to be '✓ read_file completed successfully' // Object.is equality
+   × useAgent > tool execution callbacks > should handle onToolEnd callback with failure 17ms
+     → expected undefined to be '🔴 read_file failed: File not found' // Object.is equality
+   × useAgent > tool execution callbacks > should handle onToolEnd callback with user rejection 7ms
+     → expected undefined to be '🚫 delete_file rejected by user' // Object.is equality
+   ✓ useAgent > tool execution callbacks > should handle onApiUsage callback 1ms
+   × useAgent > tool execution callbacks > should handle onToolApproval callback 2ms
+     → expected null not to be null
+   × useAgent > tool execution callbacks > should handle onMaxIterations callback 3ms
+     → expected null not to be null
+   × useAgent > tool approval > should approve tool execution 12ms
+     → result.current.setPendingApproval is not a function
+   ✓ useAgent > tool approval > should reject tool execution 4ms
+   ✓ useAgent > utility functions > should set API key on agent 2ms
+   ✓ useAgent > utility functions > should toggle auto approve 2ms
+   ✓ useAgent > utility functions > should clear history 2ms
+   ✓ useAgent > utility functions > should interrupt request 4ms
+   ✓ useAgent > utility functions > should toggle reasoning display 3ms
+   ✓ useAgent > message management > should add message with generated id and timestamp 4ms
+   ✓ useAgent > message management > should add message with reasoning 10ms
+   ✓ useAgent > message management > should generate unique message ids 7ms
+   ✓ useAgent > tool execution states > should identify tools that need approval 4ms
+   ✓ useAgent > tool execution states > should handle tool execution status changes 11ms
+   ✓ useAgent > edge cases > should handle empty message content 8ms
+   ✓ useAgent > edge cases > should handle multiple rapid message additions 11ms
+   ✓ useAgent > edge cases > should handle callback functions being undefined 4ms
+   ✓ useAgent > edge cases > should handle agent methods throwing errors 22ms
+ ✓ src/ui/components/display/TokenMetrics.test.tsx (12 tests) 130ms
+ ✓ src/utils/file-ops.test.ts (24 tests) 18ms
+ ✓ src/tools/tool-schemas.test.ts (44 tests) 21ms
+ ✓ src/commands/definitions/reasoning.test.ts (11 tests) 7ms
+ ✓ src/utils/markdown.test.ts (22 tests) 7ms
+ ✓ src/utils/local-settings.test.ts (21 tests) 12ms
+ ✓ src/commands/index.test.ts (18 tests) 30ms
+ ✓ src/commands/definitions/model.test.ts (8 tests) 15ms
+ ✓ src/commands/definitions/clear.test.ts (7 tests) 18ms
+ ✓ src/commands/base.test.ts (8 tests) 23ms
+ ✓ src/commands/definitions/help.test.ts (7 tests) 4ms
+ ✓ src/commands/definitions/login.test.ts (5 tests) 4ms
+ ✓ src/utils/constants.test.ts (6 tests) 4ms
+ ✓ src/tools/validators.test.ts (9 tests) 3ms
+
+ Test Files  5 failed | 15 passed (20)
+      Tests  26 failed | 327 passed (353)
+   Start at  08:30:55
+   Duration  2.86s (transform 1.10s, setup 0ms, collect 3.44s, tests 1.23s, environment 6.05s, prepare 1.89s)
+

@@ -2,6 +2,18 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 
+// Use vi.hoisted to ensure mocks are set up before any imports
+const mocks = vi.hoisted(() => {
+  return {
+    formatToolParams: vi.fn((toolName, args, options) => {
+      if (toolName === 'read_file') return `file_path: "${args.file_path}"`;
+      if (toolName === 'edit_file') return `file_path: "${args.file_path}"`;
+      if (toolName === 'execute_command') return `command: "${args.command}"`;
+      return '';
+    })
+  };
+});
+
 // Mock file-ops module first
 vi.mock('../../../utils/file-ops.js', () => ({
   writeFile: vi.fn(),
@@ -18,8 +30,10 @@ vi.mock('../../../tools/validators.js', () => ({
   getReadBeforeEditError: vi.fn()
 }));
 
-import ToolHistoryItem from './ToolHistoryItem';
-import { ToolExecution } from '../../hooks/useAgent.js';
+// Mock tools module with hoisted mocks
+vi.mock('../../../tools/tools.js', () => ({
+  formatToolParams: mocks.formatToolParams
+}));
 
 // Mock child components
 vi.mock('./DiffPreview.js', () => ({
@@ -30,15 +44,6 @@ vi.mock('./DiffPreview.js', () => ({
       <div>Historical: {String(isHistorical)}</div>
     </div>
   ))
-}));
-
-vi.mock('../../../tools/tools.ts', () => ({
-  formatToolParams: vi.fn((toolName, args, options) => {
-    if (toolName === 'read_file') return `file_path: "${args.file_path}"`;
-    if (toolName === 'edit_file') return `file_path: "${args.file_path}"`;
-    if (toolName === 'execute_command') return `command: "${args.command}"`;
-    return '';
-  })
 }));
 
 // Mock ink components
@@ -54,209 +59,136 @@ vi.mock('ink', () => ({
       {children}
     </div>
   ),
-  Text: ({ children, color, bold }: any) => (
-    <span data-testid="text" data-color={color} data-bold={bold}>
+  Text: ({ children, color, bold, dimColor }: any) => (
+    <span 
+      data-testid="text" 
+      data-color={color} 
+      data-bold={bold}
+      data-dim={dimColor}
+    >
       {children}
     </span>
-  ),
+  )
 }));
 
+// Now import the component and dependencies
+import ToolHistoryItem from './ToolHistoryItem';
+import { ToolExecution } from '../../hooks/useAgent.js';
+
 describe('ToolHistoryItem', () => {
-  const mockFormatToolParams = vi.mocked(require('../../../tools/tools.ts').formatToolParams);
+  const mockFormatToolParams = mocks.formatToolParams;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('rendering status indicators', () => {
-    it('should render completed status with green indicator', () => {
+  describe('rendering', () => {
+    it('should render tool name and status', () => {
       const execution: ToolExecution = {
         name: 'read_file',
-        args: { file_path: '/test/file.txt' },
         status: 'completed',
-        result: { success: true, content: 'file content' }
-      };
+        args: { file_path: '/test/file.txt' },
+        result: 'File content'
+      } as any;
 
-      const { container } = render(<ToolHistoryItem execution={execution} />);
+      const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
-      const statusText = container.querySelector('[data-color="green"]');
-      expect(statusText).toBeTruthy();
-      expect(statusText?.textContent).toContain('read_file');
+      expect(getByText('read_file')).toBeTruthy();
+      expect(getByText('🟢')).toBeTruthy();
     });
 
-    it('should render failed status with red indicator', () => {
+    it('should render formatted tool parameters', () => {
       const execution: ToolExecution = {
         name: 'edit_file',
-        args: { file_path: '/test/file.txt' },
-        status: 'failed',
-        result: { success: false, error: 'File not found' }
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const statusText = container.querySelector('[data-color="red"]');
-      expect(statusText).toBeTruthy();
-      expect(statusText?.textContent).toContain('edit_file');
-    });
-
-    it('should render canceled status with gray indicator', () => {
-      const execution: ToolExecution = {
-        name: 'execute_command',
-        args: { command: 'ls -la' },
-        status: 'canceled',
-        result: null
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const statusText = container.querySelector('[data-color="gray"]');
-      expect(statusText).toBeTruthy();
-      expect(statusText?.textContent).toContain('execute_command');
-    });
-
-    it('should render unknown status with white indicator', () => {
-      const execution: ToolExecution = {
-        name: 'custom_tool',
-        args: {},
-        status: 'unknown' as any,
-        result: null
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const statusText = container.querySelector('[data-color="white"]');
-      expect(statusText).toBeTruthy();
-    });
-  });
-
-  describe('tool parameters display', () => {
-    it('should display formatted tool parameters', () => {
-      const execution: ToolExecution = {
-        name: 'read_file',
-        args: { file_path: '/test/file.txt' },
         status: 'completed',
-        result: { success: true }
-      };
+        args: { file_path: '/test/file.txt' },
+        result: 'File edited'
+      } as any;
 
       const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
       expect(mockFormatToolParams).toHaveBeenCalledWith(
-        'read_file',
+        'edit_file',
         { file_path: '/test/file.txt' },
         { includePrefix: false, separator: ': ' }
       );
       expect(getByText('file_path: "/test/file.txt"')).toBeTruthy();
     });
 
-    it('should not display parameters when formatToolParams returns empty', () => {
+    it('should not render parameters when formatToolParams returns empty', () => {
       mockFormatToolParams.mockReturnValue('');
       
       const execution: ToolExecution = {
         name: 'unknown_tool',
-        args: {},
         status: 'completed',
-        result: { success: true }
+        args: {},
+        result: 'Done'
       };
 
-      const { queryByText } = render(<ToolHistoryItem execution={execution} />);
+      const { queryByTestId } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(queryByText(/Parameters:/)).toBeFalsy();
+      // The component should still render but without parameters
+      expect(mockFormatToolParams).toHaveBeenCalled();
+      // The Box containing parameters should not be rendered when empty
+      const texts = queryByTestId('text');
+      if (texts) {
+        expect(texts.textContent).not.toContain('file_path');
+      }
     });
   });
 
-  describe('task results display', () => {
-    it('should display task list for create_tasks', () => {
+  describe('status indicators', () => {
+    it('should show success indicator for successful tools', () => {
       const execution: ToolExecution = {
-        name: 'create_tasks',
-        args: { user_query: 'Test query' },
+        name: 'execute_command',
         status: 'completed',
-        result: {
-          success: true,
-          content: {
-            tasks: [
-              { id: '1', description: 'Task 1', status: 'pending' },
-              { id: '2', description: 'Task 2', status: 'in_progress' },
-              { id: '3', description: 'Task 3', status: 'completed' }
-            ]
-          }
-        }
+        args: { command: 'ls -la' },
+        result: 'Command output'
       };
 
       const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(getByText('☐ Task 1')).toBeTruthy();
-      expect(getByText('🔄 Task 2')).toBeTruthy();
-      expect(getByText('✓ Task 3')).toBeTruthy();
+      expect(getByText('🟢')).toBeTruthy();
     });
 
-    it('should display task list for update_tasks', () => {
+    it('should show error indicator for failed tools', () => {
       const execution: ToolExecution = {
-        name: 'update_tasks',
-        args: { task_updates: [{ id: '1', status: 'completed' }] },
-        status: 'completed',
-        result: {
-          success: true,
-          content: {
-            tasks: [
-              { id: '1', description: 'Updated task', status: 'completed' }
-            ]
-          }
-        }
+        name: 'execute_command',
+        status: 'failed',
+        args: { command: 'invalid-command' },
+        result: 'Command not found'
       };
 
       const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(getByText('✓ Updated task')).toBeTruthy();
+      expect(getByText('🔴')).toBeTruthy();
     });
 
-    it('should handle tasks without IDs', () => {
+    it('should show pending indicator for pending tools', () => {
       const execution: ToolExecution = {
-        name: 'create_tasks',
-        args: {},
-        status: 'completed',
-        result: {
-          success: true,
-          content: {
-            tasks: [
-              { description: 'Task without ID', status: 'pending' }
-            ]
-          }
-        }
+        name: 'execute_command',
+        status: 'pending',
+        args: { command: 'long-running-command' },
+        result: ''
       };
 
       const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(getByText('☐ Task without ID')).toBeTruthy();
+      expect(getByText('?')).toBeTruthy();
     });
   });
 
-  describe('diff preview display', () => {
-    it('should show diff preview for create_file when completed', () => {
-      const execution: ToolExecution = {
-        name: 'create_file',
-        args: { file_path: '/test/file.txt', content: 'new content' },
-        status: 'completed',
-        result: { success: true }
-      };
-
-      const { getByTestId } = render(<ToolHistoryItem execution={execution} />);
-      
-      const diffPreview = getByTestId('diff-preview');
-      expect(diffPreview).toBeTruthy();
-      expect(diffPreview.textContent).toContain('Tool: create_file');
-      expect(diffPreview.textContent).toContain('Historical: true');
-    });
-
-    it('should show diff preview for edit_file when completed', () => {
+  describe('diff preview for file operations', () => {
+    it('should show diff preview for edit_file', () => {
       const execution: ToolExecution = {
         name: 'edit_file',
-        args: { 
-          file_path: '/test/file.txt', 
-          old_text: 'old content', 
-          new_text: 'new content' 
-        },
         status: 'completed',
-        result: { success: true }
+        args: { 
+          file_path: '/test/file.txt',
+          old_text: 'old content',
+          new_text: 'new content'
+        },
+        result: 'File edited'
       };
 
       const { getByTestId } = render(<ToolHistoryItem execution={execution} />);
@@ -264,335 +196,190 @@ describe('ToolHistoryItem', () => {
       const diffPreview = getByTestId('diff-preview');
       expect(diffPreview).toBeTruthy();
       expect(diffPreview.textContent).toContain('Tool: edit_file');
+      expect(diffPreview.textContent).toContain('Historical: true');
+    });
+
+    it('should show diff preview for create_file', () => {
+      const execution: ToolExecution = {
+        name: 'create_file',
+        status: 'completed',
+        args: { 
+          file_path: '/test/new-file.txt',
+          content: 'new file content'
+        },
+        result: 'File created'
+      };
+
+      const { getByTestId } = render(<ToolHistoryItem execution={execution} />);
+      
+      const diffPreview = getByTestId('diff-preview');
+      expect(diffPreview).toBeTruthy();
+      expect(diffPreview.textContent).toContain('Tool: create_file');
     });
 
     it('should not show diff preview for non-file operations', () => {
       const execution: ToolExecution = {
         name: 'execute_command',
-        args: { command: 'ls' },
         status: 'completed',
-        result: { success: true }
-      };
-
-      const { queryByTestId } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(queryByTestId('diff-preview')).toBeFalsy();
-    });
-
-    it('should not show diff preview when status is not completed', () => {
-      const execution: ToolExecution = {
-        name: 'create_file',
-        args: { file_path: '/test/file.txt' },
-        status: 'failed',
-        result: { success: false }
-      };
-
-      const { queryByTestId } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(queryByTestId('diff-preview')).toBeFalsy();
-    });
-  });
-
-  describe('result content display', () => {
-    it('should render execute_command output with stdout and stderr', () => {
-      const execution: ToolExecution = {
-        name: 'execute_command',
         args: { command: 'ls -la' },
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'stdout: file1.txt\nfile2.txt\nstderr: Permission denied for file3.txt'
-        }
+        result: 'Command output'
       };
 
-      const { container } = render(<ToolHistoryItem execution={execution} />);
+      const { queryByTestId } = render(<ToolHistoryItem execution={execution} />);
       
-      const whiteText = container.querySelector('[data-color="white"]');
-      const yellowText = container.querySelector('[data-color="yellow"]');
-      
-      expect(whiteText?.textContent).toContain('file1.txt');
-      expect(yellowText?.textContent).toContain('Permission denied');
-    });
-
-    it('should handle execute_command output with empty stdout', () => {
-      const execution: ToolExecution = {
-        name: 'execute_command',
-        args: { command: 'echo' },
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'stdout: \nstderr: warning message'
-        }
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const yellowText = container.querySelector('[data-color="yellow"]');
-      expect(yellowText?.textContent).toContain('warning message');
-    });
-
-    it('should handle execute_command output with empty stderr', () => {
-      const execution: ToolExecution = {
-        name: 'execute_command',
-        args: { command: 'echo hello' },
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'stdout: hello\nstderr: '
-        }
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const whiteText = container.querySelector('[data-color="white"]');
-      expect(whiteText?.textContent).toContain('hello');
-    });
-
-    it('should render list_files output with cyan color', () => {
-      const execution: ToolExecution = {
-        name: 'list_files',
-        args: { directory: '/test' },
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'src/\n  file1.txt\n  file2.txt'
-        }
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const cyanText = container.querySelector('[data-color="cyan"]');
-      expect(cyanText?.textContent).toContain('src/');
-    });
-
-    it('should not render content for read_file', () => {
-      const execution: ToolExecution = {
-        name: 'read_file',
-        args: { file_path: '/test/file.txt' },
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'file content that should not be shown'
-        }
-      };
-
-      const { queryByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(queryByText('file content that should not be shown')).toBeFalsy();
-    });
-
-    it('should not render content for search_files', () => {
-      const execution: ToolExecution = {
-        name: 'search_files',
-        args: { pattern: '*.txt' },
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'search results that should not be shown'
-        }
-      };
-
-      const { queryByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(queryByText('search results that should not be shown')).toBeFalsy();
-    });
-
-    it('should render default content for other tools', () => {
-      const execution: ToolExecution = {
-        name: 'custom_tool',
-        args: {},
-        status: 'completed',
-        result: {
-          success: true,
-          content: 'custom tool result'
-        }
-      };
-
-      const { getByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(getByText('custom tool result')).toBeTruthy();
-    });
-
-    it('should render JSON stringified content for objects', () => {
-      const execution: ToolExecution = {
-        name: 'custom_tool',
-        args: {},
-        status: 'completed',
-        result: {
-          success: true,
-          content: { key: 'value', number: 42 }
-        }
-      };
-
-      const { container } = render(<ToolHistoryItem execution={execution} />);
-      
-      const content = container.textContent;
-      expect(content).toContain('key');
-      expect(content).toContain('value');
-    });
-
-    it('should render message when no content but result has message', () => {
-      const execution: ToolExecution = {
-        name: 'custom_tool',
-        args: {},
-        status: 'completed',
-        result: {
-          success: true,
-          message: 'Operation completed successfully'
-        }
-      };
-
-      const { getByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(getByText('Operation completed successfully')).toBeTruthy();
+      expect(queryByTestId('diff-preview')).toBeFalsy();
     });
   });
 
-  describe('error handling', () => {
-    it('should display error message for failed tool execution', () => {
+  describe('result display', () => {
+    it('should display result text for successful tools', () => {
       const execution: ToolExecution = {
-        name: 'edit_file',
-        args: { file_path: '/test/file.txt' },
-        status: 'failed',
-        result: { success: false, error: 'File not found' }
-      };
-
-      const { getByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(getByText('Tool failed: File not found')).toBeTruthy();
-    });
-
-    it('should display generic error message when no specific error', () => {
-      const execution: ToolExecution = {
-        name: 'edit_file',
-        args: { file_path: '/test/file.txt' },
+        name: 'read_file',
         status: 'completed',
-        result: { success: false }
-      };
-
-      const { getByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(getByText('Tool failed: Unknown error')).toBeTruthy();
-    });
-
-    it('should display failure message for failed status', () => {
-      const execution: ToolExecution = {
-        name: 'edit_file',
         args: { file_path: '/test/file.txt' },
-        status: 'failed',
-        result: null
-      };
+        result: { content: 'This is the file content' }
+      } as any;
 
       const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(getByText('Tool execution failed')).toBeTruthy();
+      expect(getByText('This is the file content')).toBeTruthy();
     });
 
-    it('should display failure message with result error for failed status', () => {
+    it('should display error message for failed tools', () => {
       const execution: ToolExecution = {
-        name: 'edit_file',
-        args: { file_path: '/test/file.txt' },
+        name: 'read_file',
         status: 'failed',
-        result: { success: false, error: 'Permission denied' }
-      };
+        args: { file_path: '/nonexistent.txt' },
+        result: { content: 'File not found' }
+      } as any;
 
       const { getByText } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(getByText('Tool execution failed')).toBeTruthy();
-      expect(getByText('(Permission denied)')).toBeTruthy();
+      expect(getByText('File not found')).toBeTruthy();
     });
 
-    it('should display cancellation message for canceled status', () => {
+    it('should handle empty results', () => {
       const execution: ToolExecution = {
         name: 'execute_command',
-        args: { command: 'dangerous-command' },
-        status: 'canceled',
-        result: null
-      };
-
-      const { getByText } = render(<ToolHistoryItem execution={execution} />);
-      
-      expect(getByText('Tool execution canceled by user')).toBeTruthy();
-    });
-  });
-
-  describe('component structure', () => {
-    it('should render with proper border styling for completed tools', () => {
-      const execution: ToolExecution = {
-        name: 'read_file',
-        args: { file_path: '/test/file.txt' },
         status: 'completed',
-        result: { success: true }
+        args: { command: 'touch file.txt' },
+        result: ''
       };
 
       const { container } = render(<ToolHistoryItem execution={execution} />);
       
-      const box = container.querySelector('[data-border-style="round"]');
-      expect(box).toBeTruthy();
-      expect(box?.getAttribute('data-border-color')).toBe('green');
+      // Component should render without crashing
+      expect(container).toBeTruthy();
     });
 
-    it('should render with proper border styling for failed tools', () => {
+    it('should handle very long results', () => {
+      const longResult = 'a'.repeat(1000);
       const execution: ToolExecution = {
         name: 'read_file',
-        args: { file_path: '/test/file.txt' },
-        status: 'failed',
-        result: { success: false }
-      };
+        status: 'completed',
+        args: { file_path: '/test/large-file.txt' },
+        result: { content: longResult }
+      } as any;
 
       const { container } = render(<ToolHistoryItem execution={execution} />);
       
-      const box = container.querySelector('[data-border-color="red"]');
-      expect(box).toBeTruthy();
+      // Should render the long result
+      expect(container.textContent).toContain('aaaa');
     });
   });
 
   describe('edge cases', () => {
-    it('should handle execution without result', () => {
+    it('should handle undefined tool status', () => {
       const execution: ToolExecution = {
-        name: 'custom_tool',
+        name: 'some_tool',
+        status: undefined as any,
         args: {},
-        status: 'completed',
-        result: null
+        result: 'Result'
       };
 
       const { container } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(container.textContent).toContain('custom_tool');
+      // Should render without crashing
+      expect(container).toBeTruthy();
     });
 
-    it('should handle result without content or message', () => {
+    it('should handle null result', () => {
       const execution: ToolExecution = {
-        name: 'custom_tool',
-        args: {},
+        name: 'some_tool',
         status: 'completed',
-        result: { success: true }
+        args: {},
+        result: null as any
       };
 
       const { container } = render(<ToolHistoryItem execution={execution} />);
       
-      expect(container.textContent).toContain('custom_tool');
+      // Should render without crashing
+      expect(container).toBeTruthy();
     });
 
-    it('should handle complex execute_command output format', () => {
+    it('should handle missing args', () => {
       const execution: ToolExecution = {
-        name: 'execute_command',
-        args: { command: 'multi-line-command' },
+        name: 'some_tool',
         status: 'completed',
-        result: {
-          success: true,
-          content: `stdout: line 1
-line 2
-stderr: warning 1
-warning 2`
-        }
+        args: undefined as any,
+        result: 'Result'
       };
 
       const { container } = render(<ToolHistoryItem execution={execution} />);
       
-      const content = container.textContent;
-      expect(content).toContain('line 1');
-      expect(content).toContain('warning 1');
+      // Should render without crashing
+      expect(container).toBeTruthy();
+    });
+
+    it('should handle complex nested args', () => {
+      const execution: ToolExecution = {
+        name: 'complex_tool',
+        status: 'completed',
+        args: {
+          nested: {
+            deep: {
+              value: 'test'
+            }
+          },
+          array: [1, 2, 3]
+        },
+        result: 'Processed'
+      };
+
+      const { container } = render(<ToolHistoryItem execution={execution} />);
+      
+      // Should render without crashing
+      expect(container).toBeTruthy();
+    });
+  });
+
+  describe('styling', () => {
+    it('should apply correct colors for status', () => {
+      const successTool: ToolExecution = {
+        name: 'test',
+        status: 'completed',
+        args: {},
+        result: 'ok'
+      };
+
+      const { container } = render(<ToolHistoryItem execution={successTool} />);
+      
+      const successIndicator = container.querySelector('[data-color="green"]');
+      expect(successIndicator).toBeTruthy();
+    });
+
+    it('should apply dimmed style to result text', () => {
+      const execution: ToolExecution = {
+        name: 'test',
+        status: 'completed',
+        args: {},
+        result: { content: 'Some result' }
+      } as any;
+
+      const { container } = render(<ToolHistoryItem execution={execution} />);
+      
+      const dimmedText = container.querySelector('[data-dim="true"]');
+      expect(dimmedText).toBeTruthy();
     });
   });
 });

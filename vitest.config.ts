@@ -37,5 +37,10 @@ export default defineConfig({
 		alias: {
 			'@': '/src',
 		},
+		extensions: ['.ts', '.tsx', '.js', '.jsx'],
+		extensionAlias: {
+			'.js': ['.ts', '.js'],
+			'.jsx': ['.tsx', '.jsx']
+		}
 	},
 });

@@ -12,6 +12,7 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
+		"lint": "echo 'Linting not configured yet'",
 		"test": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:watch": "vitest watch",

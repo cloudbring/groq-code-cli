@@ -309,7 +309,7 @@ describe('Chat', () => {
         approveButton.click();
         
         await waitFor(() => {
-          expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(true);
+          expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(true, false);
         });
       }
     });
@@ -327,7 +327,7 @@ describe('Chat', () => {
         rejectButton.click();
         
         await waitFor(() => {
-          expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false);
+          expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false, false);
         });
       }
     });

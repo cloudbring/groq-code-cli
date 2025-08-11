@@ -4,9 +4,12 @@ import { render } from '@testing-library/react';
 import SlashCommandSuggestions from './SlashCommandSuggestions';
 
 // Mock commands module
+const mockGetAvailableCommands = vi.fn();
+const mockGetCommandNames = vi.fn(() => ['help', 'login', 'clear', 'model', 'reasoning']);
+
 vi.mock('../../../commands/index.ts', () => ({
-  getAvailableCommands: vi.fn(),
-  getCommandNames: vi.fn(() => ['help', 'login', 'clear', 'model', 'reasoning'])
+  getAvailableCommands: mockGetAvailableCommands,
+  getCommandNames: mockGetCommandNames
 }));
 
 // Mock ink components
@@ -42,10 +45,9 @@ describe('SlashCommandSuggestions', () => {
     { command: 'reasoning', description: 'Toggle reasoning display' }
   ];
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    const commands = await import('../../../commands/index.ts');
-    vi.mocked(commands.getAvailableCommands).mockReturnValue(defaultCommands);
+    mockGetAvailableCommands.mockReturnValue(defaultCommands);
   });
 
   describe('rendering', () => {
@@ -102,9 +104,8 @@ describe('SlashCommandSuggestions', () => {
       expect(texts[0].textContent).toBe('/help - Show available commands');
     });
 
-    it('should render multiple matching commands', async () => {
-      const commands = await import('../../../commands/index.ts');
-      vi.mocked(commands.getAvailableCommands).mockReturnValue([
+    it('should render multiple matching commands', () => {
+      mockGetAvailableCommands.mockReturnValue([
         { command: 'create', description: 'Create a file' },
         { command: 'clear', description: 'Clear chat history' },
         { command: 'copy', description: 'Copy content' }

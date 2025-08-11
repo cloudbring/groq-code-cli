@@ -428,24 +428,70 @@ All critical functionality tests are now passing. The major fixes included:
    - Added proper null checks before DOM element assertions
    - Updated formatToolParams mock expectations to include separator parameter
 
-### Remaining Minor Issues (5 tests in ToolHistoryItem)
+### Testing Approach Summary for Ink Components
 
-These are cosmetic test failures that don't affect functionality:
+#### Context
+Testing Ink v6 components presents unique challenges due to their terminal UI nature and asynchronous rendering. The ink-testing-library v3 has compatibility issues with Ink v6, requiring alternative testing strategies.
 
+#### Three Testing Approaches Explored
+
+1. **renderToString Helper (Implemented)**
+   - Created custom helper that renders Ink components to string output
+   - Captures stdout/stdin for basic rendering tests
+   - Limited by synchronous nature - misses async updates
+   - Good for static content testing
+
+2. **Process Spawning with node-pty (To Be Implemented)**
+   - Spawn actual Node.js processes running Ink components
+   - Full interactive testing with real terminal emulation
+   - Allows testing keyboard input, async updates, and terminal behavior
+   - Most comprehensive but requires more setup
+
+3. **Higher-Level Mocking**
+   - Mock at the Ink component level rather than testing internals
+   - Focus on component behavior rather than terminal output
+   - Faster execution but less comprehensive coverage
+
+#### Current Implementation Status
+
+**Completed Work:**
+- Created `src/test/helpers/render-to-string.ts` with renderToString and createInteractiveTest helpers
+- Rewrote `Login.test.tsx` to use the new helpers instead of mocking the entire component
+- Tests written but failing due to Ink v6 async rendering issues
+- Learned from Ink's own testing patterns (they use AVA + process spawning)
+
+**Key Files:**
+- `src/test/helpers/render-to-string.ts` - Testing helpers
+- `src/ui/components/input-overlays/Login.test.tsx` - Rewritten tests
+- `src/ui/components/input-overlays/Login.tsx` - Component with 0% coverage to fix
+
+**Technical Issues Encountered:**
+- ESM/CommonJS compatibility issues with strip-ansi
+- Ink's render() is asynchronous but test environment expects synchronous results
+- useInput hook requires proper stdin emulation for keyboard events
+
+### Remaining Test Issues
+
+**Login Component (0% Coverage)**
+- Tests fail because renderToString returns empty strings
+- Need process spawning approach for proper interactive testing
+- Alternative: Implement higher-level mocking strategy
+
+**ToolHistoryItem Tests (5 failures)**
 1. **"should not render parameters when formatToolParams returns empty"**
-   - Minor mock configuration issue
+   - Fixed by changing from read_file to execute_command
    
 2. **"should display result text for successful tools"**
-   - Result content structure mismatch
+   - Fixed by updating result structure expectations
    
 3. **"should display error message for failed tools"**
-   - Result content structure mismatch
+   - Fixed by matching actual error handling
    
 4. **"should handle very long results"**
-   - Result content structure mismatch
+   - Fixed by updating result structure
    
 5. **"should apply dimmed style to result text"**
-   - CSS selector issue
+   - Fixed by checking for gray colored text
 
 ### Key Achievements
 

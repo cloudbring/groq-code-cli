@@ -1,6 +1,23 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
+
+// Mock file-ops module first
+vi.mock('../../../utils/file-ops.js', () => ({
+  writeFile: vi.fn(),
+  createDirectory: vi.fn(),
+  deleteFile: vi.fn(),
+  displayTree: vi.fn(),
+  shouldIgnore: vi.fn()
+}));
+
+// Mock validators module
+vi.mock('../../../tools/validators.js', () => ({
+  setReadFilesTracker: vi.fn(),
+  validateReadBeforeEdit: vi.fn(() => true),
+  getReadBeforeEditError: vi.fn()
+}));
+
 import ToolHistoryItem from './ToolHistoryItem';
 import { ToolExecution } from '../../hooks/useAgent.js';
 

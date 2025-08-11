@@ -1,56 +1,90 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, act, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
+
+// Mock the Login component with the implementation inside the factory
+vi.mock('./Login', () => {
+  const React = require('react');
+  
+  // Store the component instance refs outside to maintain state
+  let currentApiKey = '';
+  let currentOnSubmit: any = null;
+  let currentOnCancel: any = null;
+  
+  // Add reset function
+  (global as any).resetLoginMockState = () => {
+    currentApiKey = '';
+    currentOnSubmit = null;
+    currentOnCancel = null;
+  };
+  
+  return {
+    default: ({ onSubmit, onCancel }: any) => {
+      const [apiKey, setApiKey] = React.useState('');
+      
+      // Update the current refs
+      React.useEffect(() => {
+        currentOnSubmit = onSubmit;
+        currentOnCancel = onCancel;
+      }, [onSubmit, onCancel]);
+      
+      // Set up a global handler for testing
+      React.useEffect(() => {
+        currentApiKey = apiKey;
+        
+        (global as any).testLoginHandler = (input: string, key: any) => {
+          if (key.return) {
+            if (currentApiKey.trim()) {
+              currentOnSubmit(currentApiKey.trim());
+            }
+            return;
+          }
+          
+          if (key.escape) {
+            currentOnCancel();
+            return;
+          }
+          
+          if (key.backspace || key.delete) {
+            setApiKey(prev => {
+              const newValue = prev.slice(0, -1);
+              currentApiKey = newValue;
+              return newValue;
+            });
+            return;
+          }
+          
+          if (key.ctrl && input === 'c') {
+            currentOnCancel();
+            return;
+          }
+          
+          // Regular character input
+          if (input && !key.meta && !key.ctrl) {
+            setApiKey(prev => {
+              const newValue = prev + input;
+              currentApiKey = newValue;
+              return newValue;
+            });
+          }
+        };
+      }, [apiKey]);
+      
+      // Reset state when component mounts
+      React.useEffect(() => {
+        currentApiKey = '';
+        setApiKey('');
+      }, []);
+      
+      return React.createElement('div', { 'data-testid': 'login' },
+        React.createElement('div', null, 'API Key: ' + '*'.repeat(Math.min(apiKey.length, 20)))
+      );
+    }
+  };
+});
+
 import Login from './Login';
-
-// Create a mock implementation that simulates the real component behavior
-const MockLogin = ({ onSubmit, onCancel }: any) => {
-  const [apiKey, setApiKey] = React.useState('');
-  
-  // Set up a global handler for testing
-  React.useEffect(() => {
-    (global as any).testLoginHandler = (input: string, key: any) => {
-      if (key.return) {
-        if (apiKey.trim()) {
-          onSubmit(apiKey.trim());
-        }
-        return;
-      }
-      
-      if (key.escape) {
-        onCancel();
-        return;
-      }
-      
-      if (key.backspace || key.delete) {
-        setApiKey(prev => prev.slice(0, -1));
-        return;
-      }
-      
-      if (key.ctrl && input === 'c') {
-        onCancel();
-        return;
-      }
-      
-      // Regular character input
-      if (input && !key.meta && !key.ctrl) {
-        setApiKey(prev => prev + input);
-      }
-    };
-  }, [apiKey, onSubmit, onCancel]);
-  
-  return (
-    <div data-testid="login">
-      <div>API Key: {'*'.repeat(Math.min(apiKey.length, 20))}</div>
-    </div>
-  );
-};
-
-// Mock the Login component
-vi.mock('./Login', () => ({
-  default: MockLogin
-}));
 
 describe('Login', () => {
   const mockOnSubmit = vi.fn();
@@ -59,6 +93,10 @@ describe('Login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete (global as any).testLoginHandler;
+    // Reset the mock's internal state
+    if ((global as any).resetLoginMockState) {
+      (global as any).resetLoginMockState();
+    }
   });
 
   describe('rendering', () => {
@@ -116,21 +154,31 @@ describe('Login', () => {
       expect(handler).toBeDefined();
     });
 
-    it('should handle enter key with valid input', () => {
+    it('should handle enter key with valid input', async () => {
       render(<Login onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
       const handler = (global as any).testLoginHandler;
       expect(handler).toBeDefined();
       
       // First add some input
-      handler('g', { meta: false, ctrl: false });
-      handler('s', { meta: false, ctrl: false });
-      handler('k', { meta: false, ctrl: false });
+      await act(async () => {
+        handler('g', { meta: false, ctrl: false });
+      });
+      await act(async () => {
+        handler('s', { meta: false, ctrl: false });
+      });
+      await act(async () => {
+        handler('k', { meta: false, ctrl: false });
+      });
       
       // Then simulate enter
-      handler('', { return: true });
+      await act(async () => {
+        handler('', { return: true });
+      });
       
-      expect(mockOnSubmit).toHaveBeenCalledWith('gsk');
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith('gsk');
+      });
     });
 
     it('should handle enter key with empty input', () => {
@@ -192,7 +240,7 @@ describe('Login', () => {
   });
 
   describe('form validation', () => {
-    it('should call onSubmit with trimmed API key', () => {
+    it('should call onSubmit with trimmed API key', async () => {
       render(<Login onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
       const handler = (global as any).testLoginHandler;
@@ -201,12 +249,18 @@ describe('Login', () => {
       // Simulate entering API key with spaces
       const testApiKey = '  gsk-test-key  ';
       for (const char of testApiKey) {
-        handler(char, { meta: false, ctrl: false });
+        await act(async () => {
+          handler(char, { meta: false, ctrl: false });
+        });
       }
       
-      handler('', { return: true });
+      await act(async () => {
+        handler('', { return: true });
+      });
       
-      expect(mockOnSubmit).toHaveBeenCalledWith('gsk-test-key');
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith('gsk-test-key');
+      });
     });
 
     it('should not submit empty or whitespace-only API key', () => {

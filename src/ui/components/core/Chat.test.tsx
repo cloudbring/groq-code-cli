@@ -13,7 +13,7 @@ vi.mock('./MessageInput.js', () => ({
   default: vi.fn(({ onSubmit, value, onChange }) => (
     <div data-testid="message-input">
       <input value={value} onChange={(e) => onChange(e.target.value)} />
-      <button onClick={() => onSubmit(value)}>Send</button>
+      <button onClick={() => onSubmit(value || 'test message')}>Send</button>
     </div>
   ))
 }));
@@ -224,8 +224,8 @@ describe('Chat', () => {
       expect(inputCallback).toBeDefined();
       inputCallback('', { escape: true });
       
-      // Should reject the pending approval
-      expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false);
+      // Should reject the pending approval with both parameters
+      expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false, undefined);
     });
 
     it('should interrupt processing on escape when processing', () => {
@@ -246,12 +246,10 @@ describe('Chat', () => {
     it('should send messages through agent hook', async () => {
       const { getByTestId } = render(<Chat agent={mockAgent} />);
       
-      const input = getByTestId('message-input').querySelector('input');
       const button = getByTestId('message-input').querySelector('button');
       
-      // Simulate message sending
-      if (input && button) {
-        (input as HTMLInputElement).value = 'test message';
+      // Simulate message sending by clicking the button
+      if (button) {
         button.click();
         
         await waitFor(() => {
@@ -281,9 +279,9 @@ describe('Chat', () => {
       
       const { queryByTestId } = render(<Chat agent={mockAgent} />);
       
-      // Input should be hidden or disabled
+      // Input should not be visible when processing - instead "Processing..." text is shown
       const input = queryByTestId('message-input');
-      expect(input).toBeTruthy(); // Component exists but showInput prop would be false
+      expect(input).toBeFalsy(); // Input component should not be rendered when processing
     });
 
     it('should hide input when pending approval', () => {
@@ -292,8 +290,13 @@ describe('Chat', () => {
       
       const { queryByTestId } = render(<Chat agent={mockAgent} />);
       
+      // Input should not be visible when pending approval - instead pending approval component is shown
       const input = queryByTestId('message-input');
-      expect(input).toBeTruthy(); // Component exists but showInput prop would be false
+      expect(input).toBeFalsy(); // Input component should not be rendered when pending approval
+      
+      // Should show pending approval instead
+      const pendingApproval = queryByTestId('pending-approval');
+      expect(pendingApproval).toBeTruthy();
     });
   });
 

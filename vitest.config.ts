@@ -7,8 +7,11 @@ export default defineConfig({
 		environment: 'happy-dom',
 		globals: true,
 		coverage: {
+			enabled: true,
 			provider: 'v8',
-			reporter: ['text', 'json', 'html', 'lcov'],
+			reporter: ['text', 'json', 'html', 'lcov', 'text-summary'],
+			all: true,
+			include: ['src/**/*.{ts,tsx}'],
 			exclude: [
 				'node_modules/',
 				'dist/',
@@ -17,6 +20,8 @@ export default defineConfig({
 				'src/core/cli.ts',
 				'**/*.test.{ts,tsx}',
 				'**/*.spec.{ts,tsx}',
+				'coverage/**',
+				'test/**',
 			],
 			thresholds: {
 				lines: 90,

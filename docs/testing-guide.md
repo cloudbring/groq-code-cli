@@ -2,7 +2,15 @@
 
 ## Overview
 
-The Groq Code CLI test suite consists of **54 tests** (passing, partial conversion) organized using Ava test runner with structured directories for unit, integration, and component tests. This guide provides a comprehensive overview of the testing architecture, patterns, and maintenance procedures after the migration from Vitest to Ava.
+The Groq Code CLI test suite has been migrated from Vitest to Ava test runner to align with project standards. The current state includes **54 working tests** with partial conversion completed. This guide provides a comprehensive overview of the testing architecture, patterns, and maintenance procedures for the Ava-based test suite.
+
+### Migration Status
+- ✅ **Core Infrastructure**: Ava configuration, dependencies, and scripts
+- ✅ **Command Tests**: Fully converted (8 test files, ~30 tests)
+- ✅ **Utility Tests**: Fully converted (4 test files, ~24 tests)
+- 🔄 **Tool Tests**: Partial conversion (some Vitest imports remain)
+- ⏳ **Component Tests**: Awaiting conversion (React/Ink components)
+- ⏳ **Integration Tests**: Awaiting conversion (agent tests)
 
 ## Test Suite Architecture
 
@@ -105,39 +113,59 @@ npx ava --match="*should handle*"
 4. **Test Discovery**: Tests are collected from specified patterns
 5. **Sequential Execution**: Ava runs tests by default in sequential mode
 
+### Current Working Tests
+
+The following tests are successfully running with Ava:
+
+```bash
+# Run only the converted/working tests
+npm run test:unit
+
+# Currently passing:
+✔ commands › base › CommandContext - should define correct interface structure
+✔ commands › index › getAvailableCommands - should return an array of command definitions
+✔ utils › constants › IGNORE_PATTERNS should be a Set
+✔ utils › markdown › parseMarkdown - should parse plain text
+# ... 54 total tests passing
+```
+
+**Successful conversions demonstrate**:
+- Ava configuration working correctly
+- @src path mapping functional
+- Sinon mocking patterns established
+- TypeScript compilation integrated
+
 ## Test Categories by Module
 
-### 1. Unit Tests (15 test files)
+### 1. Unit Tests (Partially Converted)
 
-#### Commands Module (5 files, ~70 tests)
-Tests individual command implementations:
+#### ✅ Commands Module (8 files, ~30 tests converted)
+**Status**: Fully converted to Ava
+- **help.test.ts**: Help text generation, command listing ✅
+- **clear.test.ts**: History clearing, state management ✅
+- **login.test.ts**: API key validation, credential storage ✅
+- **model.test.ts**: Model selection, validation ✅
+- **reasoning.test.ts**: Reasoning mode toggle ✅
+- **base.test.ts**: Command interfaces and base functionality ✅
+- **index.test.ts**: Command registration and execution ✅
 
-- **help.test.ts**: Help text generation, command listing
-- **clear.test.ts**: History clearing, state management
-- **login.test.ts**: API key validation, credential storage
-- **model.test.ts**: Model selection, validation
-- **reasoning.test.ts**: Reasoning mode toggle
+#### 🔄 Tools Module (3 files, conversion in progress)
+**Status**: Needs completion - some Vitest imports remain
+- **tools.test.ts**: Tool execution, file operations ⚠️ (Has Vitest imports)
+- **tool-schemas.test.ts**: Schema validation ⚠️ (Has Vitest imports)
+- **validators.test.ts**: Input validation ⚠️ (Has Vitest imports)
 
-#### Tools Module (3 files, ~90 tests)
-Tests tool system functionality:
+#### ✅ Utils Module (4 files, ~24 tests converted)
+**Status**: Fully converted to Ava
+- **constants.test.ts**: Configuration constants ✅
+- **file-ops.test.ts**: File system operations ✅ (Needs mocking fixes)
+- **local-settings.test.ts**: Settings management ✅ (Needs mocking fixes)
+- **markdown.test.ts**: Markdown parsing and rendering ✅
 
-- **tools.test.ts**: Tool execution, file operations, command execution
-- **tool-schemas.test.ts**: Schema validation, generation
-- **validators.test.ts**: Input validation, security checks
+### 2. Integration Tests (Not Yet Converted)
 
-#### Utils Module (4 files, ~80 tests)
-Tests utility functions:
-
-- **constants.test.ts**: Configuration constants
-- **file-ops.test.ts**: File system operations
-- **local-settings.test.ts**: Settings management
-- **markdown.test.ts**: Markdown parsing and rendering
-
-### 2. Integration Tests (2 test files)
-
-#### Core Agent Tests (33 tests)
-Integration tests for the agent system:
-
+#### ⏳ Core Agent Tests
+**Status**: Awaiting conversion from Vitest
 - Agent initialization with configurations
 - API client integration
 - Message processing pipeline
@@ -145,27 +173,31 @@ Integration tests for the agent system:
 - Error handling and retries
 - Context management
 
-### 3. Component Tests (15 test files)
+### 3. Component Tests (Not Yet Converted)
 
-#### Core UI Components (4 files, ~120 tests)
+#### ⏳ Core UI Components
+**Status**: Awaiting conversion from Vitest
 - **App.test.tsx**: Main application component
 - **Chat.test.tsx**: Chat interface
 - **MessageHistory.test.tsx**: Message display
 - **MessageInput.test.tsx**: Input handling
 
-#### Display Components (3 files, ~100 tests)
-- **DiffPreview.test.tsx**: File diff visualization (25 tests)
+#### ⏳ Display Components
+**Status**: Awaiting conversion from Vitest
+- **DiffPreview.test.tsx**: File diff visualization
 - **TokenMetrics.test.tsx**: Token usage display
-- **ToolHistoryItem.test.tsx**: Tool execution history (43 tests)
+- **ToolHistoryItem.test.tsx**: Tool execution history
 
-#### Input Overlays (5 files, ~130 tests)
-- **Login.test.tsx**: Authentication UI (28 tests, 11 skipped)
-- **MaxIterationsContinue.test.tsx**: Iteration limit handling (24 tests)
+#### ⏳ Input Overlays
+**Status**: Awaiting conversion from Vitest
+- **Login.test.tsx**: Authentication UI
+- **MaxIterationsContinue.test.tsx**: Iteration limit handling
 - **ModelSelector.test.tsx**: Model selection interface
-- **PendingToolApproval.test.tsx**: Tool approval UI (30+ tests)
-- **SlashCommandSuggestions.test.tsx**: Command autocomplete (27 tests)
+- **PendingToolApproval.test.tsx**: Tool approval UI
+- **SlashCommandSuggestions.test.tsx**: Command autocomplete
 
-#### Hooks (2 files, ~40 tests)
+#### ⏳ Hooks
+**Status**: Awaiting conversion from Vitest
 - **useAgent.test.ts**: Agent state management hook
 - **useTokenMetrics.test.ts**: Token tracking hook
 
@@ -260,40 +292,70 @@ t.is(stub.callCount, 2);
 
 ## Coverage Analysis
 
-### Current Coverage Metrics
+### Current Status (Post-Migration)
 
-| Category | Statements | Branches | Functions | Lines |
-|----------|------------|----------|-----------|-------|
-| Overall  | 86.08%     | 89.17%   | 87.27%    | 86.08% |
+**Coverage reporting is currently being reconfigured for Ava + c8**
 
-### Coverage by Module
+### Pre-Migration Metrics (Reference)
+The original Vitest test suite had:
+- 640+ total tests
+- 86% overall coverage
+- Well-distributed coverage across modules
 
-- **Commands**: ~95% coverage - Well tested command implementations
-- **Core**: ~88% coverage - Complex agent logic with good coverage
-- **Tools**: ~92% coverage - Comprehensive tool testing
-- **Utils**: ~100% coverage - Excellent utility function coverage
-- **UI Components**: ~82% coverage - Good component coverage with room for improvement
+### Coverage Configuration
 
-### Coverage Thresholds
+**C8 Configuration** (Coverage tool for Ava)
+```bash
+# Run tests with coverage
+npm run test:coverage
 
-Different thresholds for different test types:
-- **Unit Tests**: 80% minimum (strict)
-- **Integration Tests**: 70% minimum (more lenient)
-- **Component Tests**: 75% minimum (balanced)
+# Coverage is collected using c8 (V8 coverage)
+# Configuration can be added to package.json under "c8" key
+```
 
-## Known Issues & Skipped Tests
+### Module Coverage Status
 
-### Login Component (11 skipped tests)
-Tests skipped due to React act() warnings with Ink v6:
-- Character input handling edge cases
-- Asterisk display limiting
-- Complex input scenarios
-- Control character handling
+- **✅ Commands**: Well covered with converted tests
+- **🔄 Tools**: Coverage pending completion of conversion
+- **✅ Utils**: Good coverage with converted tests  
+- **⏳ UI Components**: Coverage pending React component conversion
+- **⏳ Core/Integration**: Coverage pending agent test conversion
 
-**Resolution Plan**: 
-- Implement proper act() wrapping for state updates
-- Consider alternative testing approach for Ink components
-- Potentially migrate to React Testing Library's waitFor patterns
+### Coverage Goals
+
+Post-migration targets:
+- **Converted Tests**: Maintain existing coverage levels
+- **New Tests**: Follow Ava best practices for comprehensive coverage
+- **Overall Goal**: Restore and exceed original 86% coverage
+
+## Known Issues & Current Challenges
+
+### Mocking Issues in Converted Tests
+Some tests encounter property redefinition errors:
+```
+TypeError: Cannot redefine property: existsSync
+TypeError: Cannot redefine property: promises
+```
+
+**Issues**:
+- `Object.defineProperty` conflicts with existing properties
+- Sinon stubbing needs different approach for built-in modules
+
+**Solutions in Progress**:
+- Use Sinon's `stub()` and `restore()` for module mocking
+- Implement proper test isolation with `test.beforeEach` and `test.afterEach`
+- Consider using module path interception for complex mocks
+
+### Remaining Vitest Dependencies
+Some test files still import from 'vitest':
+- `test/unit/tools/*.test.ts` (3 files)
+- `test/component/**/*.test.tsx` (13+ files) 
+- `test/integration/**/*.test.ts` (2 files)
+
+**Resolution Plan**:
+- Complete systematic conversion of remaining files
+- Update complex mocking patterns for React components
+- Ensure all assertions use Ava's `t.*` format
 
 ## CI/CD Integration
 
@@ -345,46 +407,66 @@ Tests run automatically on:
 4. **Console output**: Use `console.log` for debugging (remove before commit)
 5. **Watch mode**: Use `npm run test:watch` for rapid iteration
 
-## Future Improvements
+## Migration Roadmap
 
 ### Phase 1 (Completed) ✅
-- Unit test coverage >80%
-- Workspace configuration for test organization
-- @src alias implementation
-- GitHub Actions integration
+- ✅ Ava infrastructure setup and configuration
+- ✅ Core command tests converted (8 files)
+- ✅ Utility tests converted (4 files)
+- ✅ @src alias working with Ava
+- ✅ TypeScript compilation fixed
+- ✅ Documentation updated
 
-### Phase 2 (In Progress)
-- Fix skipped Login component tests
-- Add E2E tests with Playwright
-- Performance benchmarking suite
-- Visual regression testing for UI components
+### Phase 2 (In Progress) 🔄
+- 🔄 Complete tool tests conversion (3 files remaining)
+- 🔄 Fix mocking issues in converted tests
+- 🔄 Set up c8 coverage reporting
+- ⏳ Convert React component tests (13+ files)
+- ⏳ Convert integration tests (2 files)
 
-### Phase 3 (Planned)
-- Mutation testing with Stryker
-- Contract testing for API interactions
-- Security testing automation
-- Load testing for concurrent operations
-- Snapshot testing for complex outputs
+### Phase 3 (Planned) 📋
+- 📋 Achieve parity with original test coverage (86%+)
+- 📋 Optimize Ava test performance
+- 📋 Add React Testing Library best practices
+- 📋 Implement proper Sinon mocking patterns
+- 📋 Add E2E tests with Playwright (if needed)
+
+### Current Priorities
+1. **Complete remaining conversions** - Finish tool, component, and integration tests
+2. **Fix mocking issues** - Resolve property redefinition errors
+3. **Restore coverage reporting** - Configure c8 for comprehensive metrics
+4. **Documentation** - Update patterns and examples as conversion progresses
 
 ## Contributing
 
-When contributing tests:
+When contributing to the test suite:
 
-1. **Follow conventions**: Use existing patterns and structures
-2. **Update documentation**: Add new test categories to this guide
-3. **Maintain coverage**: Don't reduce overall coverage
-4. **Review checklist**:
-   - Tests pass locally
-   - Coverage meets thresholds
-   - No console.log statements
-   - Mocks are properly cleaned up
-   - Uses @src alias for imports
+### For New Tests (Use Ava)
+1. **Follow Ava patterns**: Use `test()` functions with descriptive names
+2. **Use Ava assertions**: `t.is()`, `t.true()`, `t.deepEqual()`, etc.
+3. **Proper mocking**: Use Sinon stubs, avoid `Object.defineProperty` conflicts
+4. **Import paths**: Always use `@src/*` for source imports
+5. **Cleanup**: Use `test.afterEach.always(() => sinon.restore())`
+
+### For Converting Existing Tests
+1. **Remove Vitest imports**: Replace with `import test from 'ava'` and `import sinon from 'sinon'`
+2. **Convert structure**: `describe()` → descriptive `test()` names
+3. **Update assertions**: `expect()` → `t.*` assertions
+4. **Fix mocking**: Replace `vi.mock()` with appropriate Sinon patterns
+5. **Test locally**: Ensure converted tests run with `npm run test:unit`
+
+### Review Checklist
+- ✅ Tests pass locally with Ava
+- ✅ No Vitest imports remaining
+- ✅ Uses `@src` alias for imports
+- ✅ Proper Sinon cleanup in afterEach
+- ✅ Descriptive test names following "Module - should do something" pattern
 
 ## Resources
 
-- [Vitest Documentation](https://vitest.dev/)
-- [Testing Library](https://testing-library.com/)
-- [React Testing Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
-- [Ink Testing Guide](https://github.com/vadimdemedes/ink#testing)
-- [Project Test Plan](./testplan.md)
-- [Detailed Testing Guide](./testing-guide-detailed.md)
+- [Ava Documentation](https://github.com/avajs/ava)
+- [Ava Assertions](https://github.com/avajs/ava/blob/main/docs/03-assertions.md)
+- [Sinon Documentation](https://sinonjs.org/)
+- [Testing Library](https://testing-library.com/) (for React components)
+- [C8 Coverage](https://github.com/bcoe/c8) (coverage tool)
+- [Project Migration Guide](./testing-migration.md) (if created)

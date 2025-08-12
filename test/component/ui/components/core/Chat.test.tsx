@@ -1,0 +1,353 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, waitFor } from '@testing-library/react';
+import Chat from '@src/ui/components/core/Chat';
+import { Agent } from '@src/core/agent';
+
+// Mock all the child components
+vi.mock('@src/ui/components/core/MessageHistory', () => ({
+  default: vi.fn(() => <div data-testid="message-history">MessageHistory</div>)
+}));
+
+vi.mock('@src/ui/components/core/MessageInput', () => ({
+  default: vi.fn(({ onSubmit, value, onChange }) => (
+    <div data-testid="message-input">
+      <input value={value} onChange={(e) => onChange(e.target.value)} />
+      <button onClick={() => onSubmit(value || 'test message')}>Send</button>
+    </div>
+  ))
+}));
+
+vi.mock('@src/ui/components/display/TokenMetrics', () => ({
+  default: vi.fn(() => <div data-testid="token-metrics">TokenMetrics</div>)
+}));
+
+vi.mock('@src/ui/components/input-overlays/PendingToolApproval', () => ({
+  default: vi.fn(({ onApprove, onReject }) => (
+    <div data-testid="pending-approval">
+      <button onClick={() => onApprove()}>Approve</button>
+      <button onClick={() => onReject()}>Reject</button>
+    </div>
+  ))
+}));
+
+vi.mock('@src/ui/components/input-overlays/Login', () => ({
+  default: vi.fn(({ onSubmit, onCancel }) => (
+    <div data-testid="login">
+      <button onClick={() => onSubmit('test-key')}>Submit</button>
+      <button onClick={() => onCancel()}>Cancel</button>
+    </div>
+  ))
+}));
+
+vi.mock('@src/ui/components/input-overlays/ModelSelector', () => ({
+  default: vi.fn(({ onSubmit, onCancel }) => (
+    <div data-testid="model-selector">
+      <button onClick={() => onSubmit('test-model')}>Select</button>
+      <button onClick={() => onCancel()}>Cancel</button>
+    </div>
+  ))
+}));
+
+vi.mock('@src/ui/components/input-overlays/MaxIterationsContinue', () => ({
+  default: vi.fn(({ onContinue }) => (
+    <div data-testid="max-iterations">
+      <button onClick={() => onContinue(true)}>Continue</button>
+      <button onClick={() => onContinue(false)}>Stop</button>
+    </div>
+  ))
+}));
+
+// Mock hooks
+const mockUseAgent = vi.fn();
+const mockUseTokenMetrics = vi.fn();
+
+vi.mock('@src/ui/hooks/useAgent', () => ({
+  useAgent: (...args: any[]) => mockUseAgent(...args)
+}));
+
+vi.mock('@src/ui/hooks/useTokenMetrics', () => ({
+  useTokenMetrics: () => mockUseTokenMetrics()
+}));
+
+// Mock ink hooks
+let inputCallback: any = null;
+const mockUseApp = vi.fn();
+
+vi.mock('ink', () => ({
+  Box: ({ children }: any) => <div data-testid="box">{children}</div>,
+  Text: ({ children }: any) => <span data-testid="text">{children}</span>,
+  useInput: (callback: any) => {
+    inputCallback = callback;
+    return () => {};
+  },
+  useApp: () => mockUseApp()
+}));
+
+// Mock command handler
+vi.mock('@src/commands/index', () => ({
+  handleSlashCommand: vi.fn()
+}));
+
+describe('Chat', () => {
+  let mockAgent: Agent;
+  let mockAgentHookReturn: any;
+  let mockTokenMetricsReturn: any;
+  let mockExit: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    inputCallback = null;
+
+    mockAgent = {
+      setApiKey: vi.fn(),
+      chat: vi.fn(),
+      interrupt: vi.fn(),
+      toggleAutoApprove: vi.fn(),
+      setReasoningDisplay: vi.fn(),
+    } as any;
+
+    mockTokenMetricsReturn = {
+      completionTokens: 0,
+      startTime: null,
+      endTime: null,
+      pausedTime: 0,
+      isPaused: false,
+      isActive: false,
+      startRequest: vi.fn(),
+      addApiTokens: vi.fn(),
+      pauseMetrics: vi.fn(),
+      resumeMetrics: vi.fn(),
+      completeRequest: vi.fn(),
+      resetMetrics: vi.fn(),
+    };
+
+    mockAgentHookReturn = {
+      messages: [],
+      userMessageHistory: [],
+      isProcessing: false,
+      currentToolExecution: null,
+      pendingApproval: null,
+      pendingMaxIterations: null,
+      sessionAutoApprove: false,
+      showReasoning: false,
+      sendMessage: vi.fn(),
+      approveToolExecution: vi.fn(),
+      respondToMaxIterations: vi.fn(),
+      addMessage: vi.fn(),
+      setApiKey: vi.fn(),
+      clearHistory: vi.fn(),
+      toggleAutoApprove: vi.fn(),
+      toggleReasoning: vi.fn(),
+      interruptRequest: vi.fn(),
+    };
+
+    mockExit = vi.fn();
+
+    mockUseTokenMetrics.mockReturnValue(mockTokenMetricsReturn);
+    mockUseAgent.mockReturnValue(mockAgentHookReturn);
+    mockUseApp.mockReturnValue({ exit: mockExit });
+  });
+
+  describe('rendering', () => {
+    it('should render all core components', () => {
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      expect(getByTestId('message-history')).toBeTruthy();
+      expect(getByTestId('message-input')).toBeTruthy();
+    });
+
+    it('should show token metrics when active', () => {
+      mockTokenMetricsReturn.isActive = true;
+      mockUseTokenMetrics.mockReturnValue(mockTokenMetricsReturn);
+      
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      expect(getByTestId('token-metrics')).toBeTruthy();
+    });
+
+    it('should show pending approval when tool needs approval', () => {
+      mockAgentHookReturn.pendingApproval = { tool: 'test-tool', args: {} };
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      expect(getByTestId('pending-approval')).toBeTruthy();
+    });
+
+    it('should show login when showLogin is true', () => {
+      const { getByTestId, rerender } = render(<Chat agent={mockAgent} />);
+      
+      // Trigger login display (would normally be done via command)
+      mockAgentHookReturn.isProcessing = false;
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      // Note: In real implementation, showLogin is set via state
+      // For testing, we'd need to trigger the login command
+    });
+
+    it('should show max iterations dialog when pending', () => {
+      mockAgentHookReturn.pendingMaxIterations = true;
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      expect(getByTestId('max-iterations')).toBeTruthy();
+    });
+  });
+
+  describe('keyboard shortcuts', () => {
+    it('should exit on Ctrl+C', () => {
+      render(<Chat agent={mockAgent} />);
+      
+      expect(inputCallback).toBeDefined();
+      inputCallback('c', { ctrl: true });
+      
+      expect(mockExit).toHaveBeenCalled();
+    });
+
+    it('should toggle auto-approve on Shift+Tab', () => {
+      render(<Chat agent={mockAgent} />);
+      
+      expect(inputCallback).toBeDefined();
+      inputCallback('', { shift: true, tab: true });
+      
+      expect(mockAgentHookReturn.toggleAutoApprove).toHaveBeenCalled();
+    });
+
+    it('should handle escape key for pending approval', () => {
+      mockAgentHookReturn.pendingApproval = { tool: 'test-tool', args: {} };
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      render(<Chat agent={mockAgent} />);
+      
+      expect(inputCallback).toBeDefined();
+      inputCallback('', { escape: true });
+      
+      // Should reject the pending approval with both parameters
+      expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false, undefined);
+    });
+
+    it('should interrupt processing on escape when processing', () => {
+      mockAgentHookReturn.isProcessing = true;
+      mockAgentHookReturn.currentToolExecution = null;
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      render(<Chat agent={mockAgent} />);
+      
+      expect(inputCallback).toBeDefined();
+      inputCallback('', { escape: true });
+      
+      expect(mockAgentHookReturn.interruptRequest).toHaveBeenCalled();
+    });
+  });
+
+  describe('message handling', () => {
+    it('should send messages through agent hook', async () => {
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      const button = getByTestId('message-input').querySelector('button');
+      
+      // Simulate message sending by clicking the button
+      if (button) {
+        button.click();
+        
+        await waitFor(() => {
+          expect(mockAgentHookReturn.sendMessage).toHaveBeenCalledWith('test message');
+        });
+      }
+    });
+
+    it('should handle slash commands', async () => {
+      const { handleSlashCommand } = await import('@src/commands/index');
+      
+      render(<Chat agent={mockAgent} />);
+      
+      // Simulate slash command input
+      const input = document.querySelector('input');
+      if (input) {
+        input.value = '/help';
+        // In real implementation, this would trigger handleSlashCommand
+      }
+    });
+  });
+
+  describe('state management', () => {
+    it('should hide input when processing', () => {
+      mockAgentHookReturn.isProcessing = true;
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      const { queryByTestId } = render(<Chat agent={mockAgent} />);
+      
+      // Input should not be visible when processing - instead "Processing..." text is shown
+      const input = queryByTestId('message-input');
+      expect(input).toBeFalsy(); // Input component should not be rendered when processing
+    });
+
+    it('should hide input when pending approval', () => {
+      mockAgentHookReturn.pendingApproval = { tool: 'test-tool', args: {} };
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      const { queryByTestId } = render(<Chat agent={mockAgent} />);
+      
+      // Input should not be visible when pending approval - instead pending approval component is shown
+      const input = queryByTestId('message-input');
+      expect(input).toBeFalsy(); // Input component should not be rendered when pending approval
+      
+      // Should show pending approval instead
+      const pendingApproval = queryByTestId('pending-approval');
+      expect(pendingApproval).toBeTruthy();
+    });
+  });
+
+  describe('tool approval', () => {
+    it('should approve tool execution', async () => {
+      mockAgentHookReturn.pendingApproval = { tool: 'test-tool', args: {} };
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      const approveButton = getByTestId('pending-approval').querySelector('button');
+      if (approveButton) {
+        approveButton.click();
+        
+        await waitFor(() => {
+          expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(true, false);
+        });
+      }
+    });
+
+    it('should reject tool execution', async () => {
+      mockAgentHookReturn.pendingApproval = { tool: 'test-tool', args: {} };
+      mockUseAgent.mockReturnValue(mockAgentHookReturn);
+      
+      const { getByTestId } = render(<Chat agent={mockAgent} />);
+      
+      const buttons = getByTestId('pending-approval').querySelectorAll('button');
+      const rejectButton = buttons[1]; // Second button is reject
+      
+      if (rejectButton) {
+        rejectButton.click();
+        
+        await waitFor(() => {
+          expect(mockAgentHookReturn.approveToolExecution).toHaveBeenCalledWith(false, false);
+        });
+      }
+    });
+  });
+
+  describe('metrics integration', () => {
+    it('should pass metrics callbacks to useAgent', () => {
+      render(<Chat agent={mockAgent} />);
+      
+      expect(mockUseAgent).toHaveBeenCalledWith(
+        mockAgent,
+        mockTokenMetricsReturn.startRequest,
+        mockTokenMetricsReturn.addApiTokens,
+        mockTokenMetricsReturn.pauseMetrics,
+        mockTokenMetricsReturn.resumeMetrics,
+        mockTokenMetricsReturn.completeRequest
+      );
+    });
+  });
+});

@@ -111,7 +111,34 @@ export GROQ_API_KEY=your_api_key_here
 
 ## Development
 
-### Testing Locally
+### Testing
+
+The project includes a comprehensive test suite with 640+ tests organized into unit, integration, and component tests.
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test types
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests only  
+npm run test:component     # Component tests only
+
+# Run with coverage report
+npm run test:coverage
+
+# Watch mode for development
+npm run test:watch
+
+# Interactive UI
+npm run test:ui
+```
+
+**Coverage**: 86% statements, 89% branches, 87% functions, 86% lines
+
+For detailed testing information, see the [Testing Guide](./docs/testing-guide.md).
+
+### Development
 ```bash
 # Run this in the background during development to automatically apply any changes to the source code
 npm run dev  
@@ -156,7 +183,14 @@ groq-code-cli/
 │       ├── file-ops.ts         # File system operations
 │       ├── local-settings.ts   # Local configuration management
 │       └── markdown.ts         # Markdown processing utilities
-├── docs/                   
+├── test/                       # Test suite (640+ tests)
+│   ├── unit/                   # Unit tests for individual modules
+│   ├── integration/            # Integration tests
+│   └── component/              # React component tests
+├── docs/                       # Documentation
+│   ├── testing-guide.md        # Comprehensive testing guide
+│   └── ...                     # Additional documentation
+├── vitest.workspace.ts         # Vitest workspace configuration
 ├── package.json    
 ├── tsconfig.json        
 └── LICENSE          

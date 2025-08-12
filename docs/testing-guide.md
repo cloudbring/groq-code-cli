@@ -2,373 +2,199 @@
 
 ## Overview
 
-The Groq Code CLI test suite consists of **629 tests** (618 passing, 11 skipped) organized across multiple modules and components. This guide provides a comprehensive overview of what each test category covers, helping developers understand the testing strategy and maintain high code quality.
+The Groq Code CLI test suite consists of **640 tests** (629 passing, 11 skipped) organized using Vitest workspace configuration with separate projects for unit, integration, and component tests. This guide provides a comprehensive overview of the testing architecture, patterns, and maintenance procedures.
 
-**Current Coverage**: 86% statements, 89% branches, 87% functions, 86% lines (threshold: 80%)
+**Current Coverage**: 86% statements, 89% branches, 87% functions, 86% lines
 
-## Test Suite Organization
+## Test Suite Architecture
+
+### Directory Structure
+```
+test/
+├── unit/                # Unit tests for individual functions/modules
+│   ├── commands/       # Command system tests
+│   ├── tools/          # Tool implementation tests
+│   └── utils/          # Utility function tests
+├── integration/        # Integration tests for system interactions
+│   └── core/          # Core agent integration tests
+└── component/         # React component tests
+    └── ui/
+        ├── components/
+        │   ├── core/        # Core UI components
+        │   ├── display/     # Display components
+        │   └── input-overlays/ # Modal/overlay components
+        └── hooks/           # React hooks tests
+```
+
+### Vitest Workspace Configuration
+
+The test suite uses a Vitest workspace with three distinct projects:
 
 ```
-src/
-├── commands/        (7 test files, ~70 tests)
-├── core/           (1 test file, 33 tests)
-├── tools/          (3 test files, ~90 tests)
-├── utils/          (5 test files, ~80 tests)
-└── ui/             
-    ├── components/
-    │   ├── core/        (4 test files, ~120 tests)
-    │   ├── display/     (3 test files, ~100 tests)
-    │   └── input-overlays/ (5 test files, ~130 tests)
-    └── hooks/           (2 test files, ~40 tests)
+vitest.workspace.ts     # Main workspace configuration
+├── vitest.config.unit.ts        # Unit test configuration
+├── vitest.config.integration.ts # Integration test configuration
+└── vitest.config.component.ts   # Component test configuration
 ```
 
-## Module Categories
+#### Project-Specific Configurations
 
-### 1. Commands Module (~70 tests)
-**Purpose**: Tests the CLI command system and individual command implementations
+**Unit Tests** (`vitest.config.unit.ts`)
+- Environment: `node`
+- Coverage thresholds: 80% (lines, functions, branches, statements)
+- Focus: Individual functions and modules in isolation
 
-#### Base Command System (`base.test.ts`)
-- **Command Registration**: Validates that commands can be registered with the system
-- **Command Execution**: Tests the lifecycle of command execution
-- **Error Handling**: Ensures commands handle errors gracefully
-- **Command Context**: Validates context passing between commands
+**Integration Tests** (`vitest.config.integration.ts`)
+- Environment: `node`
+- Test timeout: 20 seconds
+- Coverage thresholds: 70% (more lenient for integration tests)
+- Single-threaded execution to avoid conflicts
 
-#### Individual Commands
-Each command has comprehensive tests covering:
+**Component Tests** (`vitest.config.component.ts`)
+- Environment: `happy-dom`
+- React plugin enabled
+- Setup file for React Testing Library
+- Coverage thresholds: 75% for UI components
 
-**Clear Command (`clear.test.ts`)**
-- Screen clearing functionality
-- Terminal output reset
-- State preservation during clear
+## Import Path Management
 
-**Help Command (`help.test.ts`)**
-- Help text generation and formatting
-- Command listing accuracy
-- Dynamic help based on available commands
-- Markdown formatting of help content
+### @src Alias
 
-**Login Command (`login.test.ts`)**
-- API key validation (format, length, prefix)
-- Credential storage and retrieval
-- Error handling for invalid keys
-- Session management
+All test files use the `@src` alias for clean, consistent imports:
 
-**Model Command (`model.test.ts`)**
-- Model selection from available options
-- Model validation against supported list
-- Default model handling
-- Model switching during session
+```typescript
+// Instead of complex relative paths:
+import { Agent } from '../../../src/core/agent';
 
-**Reasoning Command (`reasoning.test.ts`)**
-- Toggle reasoning mode on/off
-- Configuration persistence
-- Impact on agent behavior
-- Status display
+// Use the @src alias:
+import { Agent } from '@src/core/agent';
+```
 
-### 2. Core Module (33 tests)
-**Purpose**: Tests the core agent logic and message processing
+This is configured in:
+- `tsconfig.json`: TypeScript path mapping
+- Each `vitest.config.*.ts`: Vite resolve alias
 
-#### Agent Tests (`agent.test.ts`)
-**Initialization & Configuration**
-- Agent creation with various configurations
-- API client setup and validation
-- Default settings application
-- Environment variable handling
+### Mock Imports
 
-**Message Processing**
-- Input sanitization and validation
-- Message queue management
-- Context window handling
-- Message history tracking
+Mocks also use the `@src` alias:
 
-**Tool Execution**
-- Tool selection based on user input
-- Parameter extraction and validation
-- Tool execution orchestration
-- Result processing and formatting
+```typescript
+vi.mock('@src/utils/file-ops', () => ({
+  writeFile: vi.fn(),
+  createDirectory: vi.fn()
+}));
+```
 
-**Response Generation**
-- Streaming vs. non-streaming responses
-- Token counting and limits
-- Response formatting (markdown, code blocks)
-- Error message generation
+## Running Tests
 
-**Rate Limiting & Retries**
-- Rate limit detection and handling
-- Exponential backoff implementation
-- Retry logic for transient failures
-- Quota management
+### NPM Scripts
 
-**Context Management**
-- Context window size enforcement
-- Message pruning strategies
-- System message preservation
-- Token optimization
+```bash
+# Run all tests with workspace configuration
+npm test
 
-### 3. Tools Module (~90 tests)
-**Purpose**: Tests tool schemas, execution, and validation
+# Run specific test projects
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests only
+npm run test:component     # Component tests only
 
-#### Tool Schemas (`tool-schemas.test.ts`)
-**Schema Validation**
-- JSON schema compliance
-- Required vs. optional parameters
-- Type checking for parameters
-- Nested schema validation
+# Coverage and development
+npm run test:coverage      # Run all tests with coverage report
+npm run test:watch        # Watch mode for all tests
+npm run test:ui           # Interactive UI for test exploration
 
-**Schema Generation**
-- Dynamic schema creation
-- Schema inheritance
-- Default value handling
-- Schema documentation
+# Run specific test file
+npm test -- test/unit/tools/tools.test.ts
 
-#### Tools Implementation (`tools.test.ts`)
-**Tool Registration**
-- Dynamic tool loading
-- Tool naming conflicts
-- Tool availability checks
-- Tool metadata management
+# Run tests matching pattern
+npm test -- --grep "should handle"
+```
 
-**File Operations**
-- File reading with encoding detection
-- File writing with backup creation
-- Directory operations (create, list, delete)
-- Path validation and sanitization
-- Permission checking
+### Test Execution Flow
 
-**System Commands**
-- Command execution in shell
-- Environment variable handling
-- Working directory management
-- Process output capture
-- Error stream handling
+1. **Workspace Discovery**: Vitest loads `vitest.workspace.ts`
+2. **Project Configuration**: Each project loads its specific config
+3. **Test Collection**: Tests are collected based on include patterns
+4. **Parallel Execution**: Unit and component tests run in parallel
+5. **Coverage Aggregation**: Coverage is collected across all projects
 
-**Tool Response Handling**
-- Success/failure response formatting
-- Streaming output support
-- Binary data handling
-- Large output truncation
+## Test Categories by Module
 
-#### Validators (`validators.test.ts`)
-**Input Validation**
-- Parameter type checking
-- Range and length validation
-- Format validation (emails, URLs, paths)
-- Custom validation rules
+### 1. Unit Tests (15 test files)
 
-**Security Validation**
-- Path traversal prevention
-- Command injection prevention
-- File access restrictions
-- Sensitive data detection
+#### Commands Module (5 files, ~70 tests)
+Tests individual command implementations:
 
-### 4. Utils Module (~80 tests)
-**Purpose**: Tests utility functions and helper modules
+- **help.test.ts**: Help text generation, command listing
+- **clear.test.ts**: History clearing, state management
+- **login.test.ts**: API key validation, credential storage
+- **model.test.ts**: Model selection, validation
+- **reasoning.test.ts**: Reasoning mode toggle
 
-#### Constants (`constants.test.ts`)
-- Default value exports
-- Configuration constants
-- Environment-specific values
-- Type definitions
+#### Tools Module (3 files, ~90 tests)
+Tests tool system functionality:
 
-#### File Operations (`file-ops.test.ts`)
-**File System Operations**
-- Recursive directory creation
-- Safe file deletion
-- File existence checking
-- File stat operations
+- **tools.test.ts**: Tool execution, file operations, command execution
+- **tool-schemas.test.ts**: Schema validation, generation
+- **validators.test.ts**: Input validation, security checks
 
-**Path Handling**
-- Path normalization
-- Relative to absolute conversion
-- Cross-platform compatibility
-- Symlink resolution
+#### Utils Module (4 files, ~80 tests)
+Tests utility functions:
 
-**Error Handling**
-- Permission denied scenarios
-- Disk full handling
-- Invalid path handling
-- Race condition prevention
+- **constants.test.ts**: Configuration constants
+- **file-ops.test.ts**: File system operations
+- **local-settings.test.ts**: Settings management
+- **markdown.test.ts**: Markdown parsing and rendering
 
-#### Local Settings (`local-settings.test.ts`)
-**Settings Management**
-- Settings file creation
-- Settings loading and parsing
-- Settings validation
-- Migration from old formats
+### 2. Integration Tests (2 test files)
 
-**Persistence**
-- Atomic writes
-- Backup creation
-- Corruption recovery
-- Default settings fallback
+#### Core Agent Tests (33 tests)
+Integration tests for the agent system:
 
-#### Markdown Processing (`markdown.test.ts`)
-**Parsing**
-- Code block extraction
-- Language detection
-- Fence style handling
-- Nested markdown
+- Agent initialization with configurations
+- API client integration
+- Message processing pipeline
+- Tool execution flow
+- Error handling and retries
+- Context management
 
-**Rendering**
-- Syntax highlighting
-- Table formatting
-- Link processing
-- Image handling
+### 3. Component Tests (15 test files)
 
-### 5. UI Components (~350 tests)
+#### Core UI Components (4 files, ~120 tests)
+- **App.test.tsx**: Main application component
+- **Chat.test.tsx**: Chat interface
+- **MessageHistory.test.tsx**: Message display
+- **MessageInput.test.tsx**: Input handling
 
-#### Core Components (~120 tests)
-**Purpose**: Tests fundamental UI components
+#### Display Components (3 files, ~100 tests)
+- **DiffPreview.test.tsx**: File diff visualization (25 tests)
+- **TokenMetrics.test.tsx**: Token usage display
+- **ToolHistoryItem.test.tsx**: Tool execution history (43 tests)
 
-**Chat Component (`Chat.test.tsx`)**
-- Message rendering with proper formatting
-- Auto-scrolling behavior
-- Message updates and re-renders
-- Loading states
-- Error message display
-- Empty state handling
+#### Input Overlays (5 files, ~130 tests)
+- **Login.test.tsx**: Authentication UI (28 tests, 11 skipped)
+- **MaxIterationsContinue.test.tsx**: Iteration limit handling (24 tests)
+- **ModelSelector.test.tsx**: Model selection interface
+- **PendingToolApproval.test.tsx**: Tool approval UI (30+ tests)
+- **SlashCommandSuggestions.test.tsx**: Command autocomplete (27 tests)
 
-**Message History (`MessageHistory.test.tsx`)**
-- Message list rendering
-- Message filtering (by type, user, time)
-- Pagination for long histories
-- Message grouping
-- Timestamp formatting
-- Message selection
+#### Hooks (2 files, ~40 tests)
+- **useAgent.test.ts**: Agent state management hook
+- **useTokenMetrics.test.ts**: Token tracking hook
 
-**Message Input (`MessageInput.test.tsx`)**
-- Text input handling
-- Multi-line input support
-- Command parsing (slash commands)
-- Keyboard shortcuts (Enter, Ctrl+Enter, etc.)
-- Input validation
-- Paste handling
-- Auto-completion
+## Testing Patterns
 
-#### Display Components (~100 tests)
-**Purpose**: Tests specialized display components
+### 1. Test Organization
 
-**Diff Preview (`DiffPreview.test.tsx`)** - 25 tests
-- Unified diff rendering
-- Side-by-side diff display
-- Syntax highlighting in diffs
-- Line number display
-- Addition/deletion highlighting
-- Large diff handling
-- Binary file detection
+Tests follow a consistent structure using `describe` blocks:
 
-**Token Metrics (`TokenMetrics.test.tsx`)**
-- Token counting accuracy
-- Cost calculation
-- Usage display formatting
-- Limit warnings
-- Progress indicators
-- Historical usage tracking
-
-**Tool History Item (`ToolHistoryItem.test.tsx`)** - 43 tests
-- Tool execution status display (pending, success, error)
-- Parameter rendering
-- Result formatting
-- Error message display
-- Execution time display
-- Collapsible details
-- Status icons and colors
-
-#### Input Overlay Components (~130 tests)
-**Purpose**: Tests modal and overlay components
-
-**Login Component (`Login.test.tsx`)** - 28 tests (11 skipped)
-- Login form rendering
-- API key input handling
-- Password masking
-- Validation messages
-- Submit/cancel actions
-- Keyboard navigation
-- Error display
-
-**Max Iterations Continue (`MaxIterationsContinue.test.tsx`)** - 24 tests
-- Iteration limit warnings
-- Continue/stop prompts
-- Progress display
-- User choice handling
-- Timeout behavior
-
-**Model Selector (`ModelSelector.test.tsx`)**
-- Model list display
-- Search/filter functionality
-- Keyboard navigation
-- Model selection
-- Popular models highlighting
-- Model capabilities display
-
-**Pending Tool Approval (`PendingToolApproval.test.tsx`)** - 30+ tests
-- Tool details display
-- Approval/rejection UI
-- Parameter preview
-- Risk warnings
-- Keyboard shortcuts
-- Batch approval
-
-**Slash Command Suggestions (`SlashCommandSuggestions.test.tsx`)** - 27 tests
-- Command suggestion list
-- Fuzzy search matching
-- Keyboard navigation
-- Auto-completion
-- Command descriptions
-- Recently used commands
-
-### 6. Hooks (~40 tests)
-**Purpose**: Tests custom React hooks
-
-#### useAgent Hook (`useAgent.test.ts`)
-**State Management**
-- Message state updates
-- Loading state transitions
-- Error state handling
-- Tool execution state
-
-**API Integration**
-- API call triggering
-- Response processing
-- Error handling
-- Retry logic
-
-**Event Handling**
-- Message sending
-- Tool approval/rejection
-- Cancellation
-- Stream handling
-
-#### useTokenMetrics Hook (`useTokenMetrics.test.ts`)
-**Token Calculation**
-- Input token counting
-- Output token counting
-- Total usage tracking
-- Model-specific calculations
-
-**Cost Estimation**
-- Price per token calculations
-- Currency formatting
-- Budget tracking
-- Alert thresholds
-
-**Updates**
-- Real-time updates
-- Batch updates
-- Historical data
-- Reset functionality
-
-## Testing Patterns & Best Practices
-
-### 1. Mocking Strategy
-- **Ink Components**: Mocked to simple HTML elements for testing
-- **File System**: Mocked to prevent actual file operations
-- **API Calls**: Mocked to avoid external dependencies
-- **Time-based Operations**: Controlled with fake timers
-
-### 2. Test Organization
 ```typescript
 describe('ComponentName', () => {
+  // Setup and mocks
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('rendering', () => {
     it('should render with default props', () => {});
     it('should handle edge cases', () => {});
@@ -386,136 +212,184 @@ describe('ComponentName', () => {
 });
 ```
 
-### 3. Coverage Strategy
-- **Unit Tests**: Cover individual functions and components
-- **Integration Tests**: Test component interactions
-- **Edge Cases**: Test boundary conditions and error paths
-- **Regression Tests**: Prevent previously fixed bugs
+### 2. Mocking Strategy
+
+#### Common Mocks
+
+**File System Operations**
+```typescript
+vi.mock('@src/utils/file-ops', () => ({
+  writeFile: vi.fn(),
+  createDirectory: vi.fn(),
+  deleteFile: vi.fn()
+}));
+```
+
+**React Components (Ink)**
+```typescript
+vi.mock('ink', () => ({
+  Box: ({ children }: any) => <div data-testid="box">{children}</div>,
+  Text: ({ children }: any) => <span data-testid="text">{children}</span>,
+  useInput: vi.fn()
+}));
+```
+
+**External Libraries**
+```typescript
+vi.mock('groq-sdk', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: vi.fn()
+      }
+    }
+  }))
+}));
+```
+
+### 3. Concurrent Testing
+
+Many tests use `test.concurrent` for parallel execution:
+
+```typescript
+describe('Button Component', () => {
+  test.concurrent('should render button with text', async () => {
+    // Test implementation
+  });
+
+  test.concurrent('should handle click events', async () => {
+    // Test implementation
+  });
+});
+```
+
+## Coverage Analysis
+
+### Current Coverage Metrics
+
+| Category | Statements | Branches | Functions | Lines |
+|----------|------------|----------|-----------|-------|
+| Overall  | 86.08%     | 89.17%   | 87.27%    | 86.08% |
+
+### Coverage by Module
+
+- **Commands**: ~95% coverage - Well tested command implementations
+- **Core**: ~88% coverage - Complex agent logic with good coverage
+- **Tools**: ~92% coverage - Comprehensive tool testing
+- **Utils**: ~100% coverage - Excellent utility function coverage
+- **UI Components**: ~82% coverage - Good component coverage with room for improvement
+
+### Coverage Thresholds
+
+Different thresholds for different test types:
+- **Unit Tests**: 80% minimum (strict)
+- **Integration Tests**: 70% minimum (more lenient)
+- **Component Tests**: 75% minimum (balanced)
 
 ## Known Issues & Skipped Tests
 
 ### Login Component (11 skipped tests)
-Tests skipped due to React act() warnings and Ink v6 compatibility:
-- Character input handling
+Tests skipped due to React act() warnings with Ink v6:
+- Character input handling edge cases
 - Asterisk display limiting
-- Enter key with valid input
-- Whitespace trimming
 - Complex input scenarios
 - Control character handling
-- Empty input edge cases
 
-**Future Fix Plan**: 
-- Wrap state updates in act()
-- Implement async state handling
-- Consider alternative testing strategies for Ink v6
+**Resolution Plan**: 
+- Implement proper act() wrapping for state updates
+- Consider alternative testing approach for Ink components
+- Potentially migrate to React Testing Library's waitFor patterns
 
-## Running Tests
+## CI/CD Integration
 
-### Commands
-```bash
-# Run all tests
-npm test
+### GitHub Actions Workflow
 
-# Run with coverage
-npm run test:coverage
-
-# Watch mode for development
-npm run test:watch
-
-# Interactive UI
-npm run test:ui
-
-# Run specific test file
-npm test src/core/agent.test.ts
-
-# Run tests matching pattern
-npm test -- --grep "should handle"
-```
-
-### CI/CD Integration
-Tests automatically run on:
+Tests run automatically on:
 - Push to main/develop branches
 - Pull requests
 - Manual workflow dispatch
 
-GitHub Actions provides:
-- Matrix testing (Node 18.x, 20.x)
-- Coverage reports
-- PR comments with coverage summary
-- Test status badges
+### Test Matrix
 
-## Maintaining Tests
+- **Node Versions**: 18.x, 20.x
+- **Operating Systems**: Ubuntu (primary), Windows, macOS (planned)
+- **Coverage Reports**: Uploaded to PR comments
 
-### Adding New Tests
-1. Create test file alongside source file
-2. Follow existing naming patterns
-3. Include all test categories (rendering, interaction, errors)
-4. Aim for >80% coverage
-5. Update this guide if adding new test categories
+### Performance Benchmarks
+
+- Full test suite: ~3-4 seconds
+- Unit tests: ~1 second
+- Integration tests: ~1.5 seconds
+- Component tests: ~1.5 seconds
+
+## Best Practices
+
+### Writing New Tests
+
+1. **Location**: Place tests in the appropriate directory (unit/integration/component)
+2. **Naming**: Use `.test.ts` or `.test.tsx` extension
+3. **Imports**: Always use `@src` alias for source imports
+4. **Mocking**: Mock external dependencies, not internal logic
+5. **Coverage**: Aim for >80% coverage for new code
+6. **Isolation**: Tests should not depend on each other
+
+### Test Quality Checklist
+
+- [ ] Test both success and failure paths
+- [ ] Include edge cases and boundary conditions
+- [ ] Use descriptive test names that explain the scenario
+- [ ] Keep tests focused on a single behavior
+- [ ] Use appropriate assertions for the scenario
+- [ ] Clean up after tests (restore mocks, clear timers)
 
 ### Debugging Failed Tests
-1. Run single test in watch mode
-2. Check for timing issues (async/await)
-3. Verify mocks are properly configured
-4. Look for environment-specific issues
-5. Check for test interdependencies
 
-### Performance Considerations
-- Full test suite runs in ~3-4 seconds
-- Keep individual tests under 100ms
-- Use `describe.skip()` for slow integration tests
-- Parallelize independent tests
-
-## Test Quality Metrics
-
-### Current Status
-- **Total Tests**: 629
-- **Passing**: 618 (98.3%)
-- **Skipped**: 11 (1.7%)
-- **Execution Time**: ~3-4 seconds
-- **Files Tested**: 29
-
-### Coverage Breakdown
-| Module | Statement | Branch | Function | Line |
-|--------|-----------|---------|----------|------|
-| Commands | 95% | 92% | 94% | 95% |
-| Core | 88% | 85% | 90% | 88% |
-| Tools | 92% | 90% | 91% | 92% |
-| Utils | 100% | 96% | 100% | 100% |
-| UI | 82% | 88% | 83% | 82% |
+1. **Run in isolation**: `npm test -- test/path/to/specific.test.ts`
+2. **Check mocks**: Ensure mocks are properly cleared between tests
+3. **Async issues**: Verify proper async/await usage
+4. **Console output**: Use `console.log` for debugging (remove before commit)
+5. **Watch mode**: Use `npm run test:watch` for rapid iteration
 
 ## Future Improvements
 
-### Phase 1 (Current)
-- ✅ Unit test coverage >80%
-- ✅ GitHub Actions integration
-- ✅ Coverage reporting
+### Phase 1 (Completed) ✅
+- Unit test coverage >80%
+- Workspace configuration for test organization
+- @src alias implementation
+- GitHub Actions integration
 
-### Phase 2 (Planned)
+### Phase 2 (In Progress)
 - Fix skipped Login component tests
 - Add E2E tests with Playwright
-- Performance benchmarking
-- Visual regression testing
+- Performance benchmarking suite
+- Visual regression testing for UI components
 
-### Phase 3 (Future)
-- Mutation testing
-- Contract testing for API
-- Security testing
+### Phase 3 (Planned)
+- Mutation testing with Stryker
+- Contract testing for API interactions
+- Security testing automation
 - Load testing for concurrent operations
+- Snapshot testing for complex outputs
 
 ## Contributing
 
 When contributing tests:
-1. Follow existing patterns
-2. Write descriptive test names
-3. Include positive and negative cases
-4. Test edge cases
-5. Keep tests isolated and independent
-6. Update this guide for significant changes
+
+1. **Follow conventions**: Use existing patterns and structures
+2. **Update documentation**: Add new test categories to this guide
+3. **Maintain coverage**: Don't reduce overall coverage
+4. **Review checklist**:
+   - Tests pass locally
+   - Coverage meets thresholds
+   - No console.log statements
+   - Mocks are properly cleaned up
+   - Uses @src alias for imports
 
 ## Resources
 
 - [Vitest Documentation](https://vitest.dev/)
 - [Testing Library](https://testing-library.com/)
-- [Ink Testing Challenges](https://github.com/vadimdemedes/ink/issues)
+- [React Testing Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
+- [Ink Testing Guide](https://github.com/vadimdemedes/ink#testing)
 - [Project Test Plan](./testplan.md)
+- [Detailed Testing Guide](./testing-guide-detailed.md)

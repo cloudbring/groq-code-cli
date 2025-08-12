@@ -431,11 +431,12 @@ Tests run automatically on:
 
 ### Current Status
 ✅ **Migration Complete**: All test files converted from Vitest to Ava
-- 247 tests passing (improved from 246)
-- 35 tests failing (reduced from 56 - mocking improvements in progress)
+- 269 tests passing (improved from 247)
+- 11 tests failing (reduced from 35 - mocking improvements in progress)
 - 0 remaining Vitest imports
 - Fixed React Testing Library integration issues
 - Fixed file system mocking issues
+- Fixed error handling to preserve specific error messages
 
 ## Contributing
 

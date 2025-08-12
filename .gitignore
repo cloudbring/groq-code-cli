@@ -7,3 +7,4 @@ test-output.txt
 test-results.xmlcoverage/
 coverage-report.json
 full-test-output.txt
+coverage

@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 
 // Mock commands module
-vi.mock('../../../commands/index.ts', () => ({
+vi.mock('../../../commands/index.js', () => ({
   getAvailableCommands: vi.fn(),
   getCommandNames: vi.fn(() => ['help', 'login', 'clear', 'model', 'reasoning'])
 }));
 
 import SlashCommandSuggestions from './SlashCommandSuggestions';
-import { getAvailableCommands, getCommandNames } from '../../../commands/index.ts';
+import { getAvailableCommands, getCommandNames } from '../../../commands/index.js';
 
 const mockGetAvailableCommands = vi.mocked(getAvailableCommands);
 const mockGetCommandNames = vi.mocked(getCommandNames);
@@ -40,11 +40,11 @@ describe('SlashCommandSuggestions', () => {
   const mockOnSelect = vi.fn();
 
   const defaultCommands = [
-    { command: 'help', description: 'Show available commands' },
-    { command: 'login', description: 'Set or update API key' },
-    { command: 'clear', description: 'Clear chat history' },
-    { command: 'model', description: 'Select AI model' },
-    { command: 'reasoning', description: 'Toggle reasoning display' }
+    { command: 'help', description: 'Show available commands', handler: vi.fn() },
+    { command: 'login', description: 'Set or update API key', handler: vi.fn() },
+    { command: 'clear', description: 'Clear chat history', handler: vi.fn() },
+    { command: 'model', description: 'Select AI model', handler: vi.fn() },
+    { command: 'reasoning', description: 'Toggle reasoning display', handler: vi.fn() }
   ];
 
   beforeEach(() => {
@@ -108,9 +108,9 @@ describe('SlashCommandSuggestions', () => {
 
     it('should render multiple matching commands', () => {
       mockGetAvailableCommands.mockReturnValue([
-        { command: 'create', description: 'Create a file' },
-        { command: 'clear', description: 'Clear chat history' },
-        { command: 'copy', description: 'Copy content' }
+        { command: 'create', description: 'Create a file', handler: vi.fn() },
+        { command: 'clear', description: 'Clear chat history', handler: vi.fn() },
+        { command: 'copy', description: 'Copy content', handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -159,11 +159,11 @@ describe('SlashCommandSuggestions', () => {
     });
 
     it('should match commands containing the search term', async () => {
-      const commands = await import('../../../commands/index.ts');
+      const commands = await import('../../../commands/index.js');
       vi.mocked(commands.getAvailableCommands).mockReturnValue([
-        { command: 'help', description: 'Show available commands' },
-        { command: 'get-help', description: 'Get help information' },
-        { command: 'helper', description: 'Helper function' }
+        { command: 'help', description: 'Show available commands', handler: vi.fn() },
+        { command: 'get-help', description: 'Get help information', handler: vi.fn() },
+        { command: 'helper', description: 'Helper function', handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -210,8 +210,8 @@ describe('SlashCommandSuggestions', () => {
 
     it('should highlight the correct command when selectedIndex is not 0', () => {
       mockGetAvailableCommands.mockReturnValue([
-        { command: 'create', description: 'Create a file' },
-        { command: 'clear', description: 'Clear chat history' }
+        { command: 'create', description: 'Create a file', handler: vi.fn() },
+        { command: 'clear', description: 'Clear chat history', handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -228,8 +228,8 @@ describe('SlashCommandSuggestions', () => {
 
     it('should show non-selected commands with white text and no background', () => {
       mockGetAvailableCommands.mockReturnValue([
-        { command: 'create', description: 'Create a file' },
-        { command: 'clear', description: 'Clear chat history' }
+        { command: 'create', description: 'Create a file', handler: vi.fn() },
+        { command: 'clear', description: 'Clear chat history', handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -295,8 +295,8 @@ describe('SlashCommandSuggestions', () => {
 
     it('should use unique keys for command items', () => {
       mockGetAvailableCommands.mockReturnValue([
-        { command: 'help', description: 'Show help' },
-        { command: 'help2', description: 'Show more help' }
+        { command: 'help', description: 'Show help', handler: vi.fn() },
+        { command: 'help2', description: 'Show more help', handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -330,7 +330,7 @@ describe('SlashCommandSuggestions', () => {
 
     it('should handle commands with empty descriptions', () => {
       mockGetAvailableCommands.mockReturnValue([
-        { command: 'test', description: '' }
+        { command: 'test', description: '', handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -347,7 +347,7 @@ describe('SlashCommandSuggestions', () => {
 
     it('should handle commands with undefined descriptions', () => {
       mockGetAvailableCommands.mockReturnValue([
-        { command: 'test', description: undefined as any }
+        { command: 'test', description: undefined as any, handler: vi.fn() }
       ]);
 
       const { container } = render(
@@ -369,7 +369,7 @@ describe('SlashCommandSuggestions', () => {
       const longDescription = 'This is a very long description that exceeds normal length and should still be rendered properly';
       
       mockGetAvailableCommands.mockReturnValue([
-        { command: longCommand, description: longDescription }
+        { command: longCommand, description: longDescription, handler: vi.fn() }
       ]);
 
       const { container } = render(

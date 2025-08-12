@@ -98,7 +98,7 @@ describe('clearCommand', () => {
 
     clearCommand.handler(mockContext);
 
-    const call = mockContext.addMessage.mock.calls[0][0];
+    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
     expect(call).toEqual({
       role: 'system',
       content: 'Chat history and context cleared.',

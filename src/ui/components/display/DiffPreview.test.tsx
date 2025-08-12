@@ -12,7 +12,7 @@ vi.mock('fs', () => ({
 }));
 
 // Mock validators module
-vi.mock('../../../tools/validators.ts', () => ({
+vi.mock('../../../tools/validators.js', () => ({
   validateReadBeforeEdit: vi.fn(),
   getReadBeforeEditError: vi.fn()
 }));
@@ -38,7 +38,7 @@ describe('DiffPreview', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const validators = await import('../../../tools/validators.ts');
+    const validators = await import('../../../tools/validators.js');
     vi.mocked(validators.validateReadBeforeEdit).mockReturnValue(true);
     vi.mocked(validators.getReadBeforeEditError).mockReturnValue('Read before edit error');
     mockReadFile.mockResolvedValue('original content\nline 2\nline 3');
@@ -74,7 +74,7 @@ describe('DiffPreview', () => {
     });
 
     it('should render read-before-edit error for non-historical edits', async () => {
-      const validators = await import('../../../tools/validators.ts');
+      const validators = await import('../../../tools/validators.js');
       vi.mocked(validators.validateReadBeforeEdit).mockReturnValue(false);
       vi.mocked(validators.getReadBeforeEditError).mockReturnValue('Must read file first');
 
@@ -263,7 +263,7 @@ describe('DiffPreview', () => {
     });
 
     it('should not validate read-before-edit for historical edits', async () => {
-      const validators = await import('../../../tools/validators.ts');
+      const validators = await import('../../../tools/validators.js');
       vi.mocked(validators.validateReadBeforeEdit).mockReturnValue(false);
       
       const { getByText } = render(

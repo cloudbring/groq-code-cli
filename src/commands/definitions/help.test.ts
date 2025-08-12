@@ -31,7 +31,7 @@ describe('helpCommand', () => {
 
     expect(mockContext.addMessage).toHaveBeenCalledTimes(1);
     
-    const call = mockContext.addMessage.mock.calls[0][0];
+    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
     expect(call.role).toBe('system');
     expect(call.content).toContain('Available Commands:');
     expect(call.content).toContain('/help - Show help and available commands');
@@ -49,7 +49,7 @@ describe('helpCommand', () => {
 
     helpCommand.handler(mockContext);
 
-    const call = mockContext.addMessage.mock.calls[0][0];
+    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
     const content = call.content;
 
     // Should include various commands
@@ -69,7 +69,7 @@ describe('helpCommand', () => {
 
     helpCommand.handler(mockContext);
 
-    const call = mockContext.addMessage.mock.calls[0][0];
+    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
     const content = call.content;
 
     expect(content).toContain('arrow keys');
@@ -86,7 +86,7 @@ describe('helpCommand', () => {
 
     helpCommand.handler(mockContext);
 
-    const call = mockContext.addMessage.mock.calls[0][0];
+    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
     const content = call.content;
 
     expect(content).toContain('Esc');
@@ -106,7 +106,7 @@ describe('helpCommand', () => {
 
     helpCommand.handler(mockContext);
 
-    const call = mockContext.addMessage.mock.calls[0][0];
+    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
     const content = call.content;
 
     expect(content).toContain('lightweight');

@@ -337,12 +337,6 @@ describe('MessageHistory', () => {
           id: '1',
           role: 'tool',
           content: '',
-          tool: {
-            tool: 'test_tool',
-            status: 'success',
-            args: {},
-            result: 'Result'
-          },
           timestamp: new Date('2024-01-01T12:00:00')
         }
       ];
@@ -403,7 +397,6 @@ describe('MessageHistory', () => {
           id: '1',
           role: 'tool',
           content: '',
-          tool: undefined as any,
           timestamp: new Date('2024-01-01T12:00:00')
         }
       ];

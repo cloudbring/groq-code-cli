@@ -85,6 +85,7 @@ describe('ToolHistoryItem', () => {
   describe('rendering', () => {
     it('should render tool name and status', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'read_file',
         status: 'completed',
         args: { file_path: '/test/file.txt' },
@@ -99,6 +100,7 @@ describe('ToolHistoryItem', () => {
 
     it('should render formatted tool parameters', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'edit_file',
         status: 'completed',
         args: { file_path: '/test/file.txt' },
@@ -119,6 +121,7 @@ describe('ToolHistoryItem', () => {
       mockFormatToolParams.mockReturnValue('');
       
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'unknown_tool',
         status: 'completed',
         args: {},
@@ -139,6 +142,7 @@ describe('ToolHistoryItem', () => {
   describe('status indicators', () => {
     it('should show success indicator for successful tools', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',
         status: 'completed',
         args: { command: 'ls -la' },
@@ -152,6 +156,7 @@ describe('ToolHistoryItem', () => {
 
     it('should show error indicator for failed tools', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',
         status: 'failed',
         args: { command: 'invalid-command' },
@@ -165,6 +170,7 @@ describe('ToolHistoryItem', () => {
 
     it('should show pending indicator for pending tools', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',
         status: 'pending',
         args: { command: 'long-running-command' },
@@ -180,6 +186,7 @@ describe('ToolHistoryItem', () => {
   describe('diff preview for file operations', () => {
     it('should show diff preview for edit_file', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'edit_file',
         status: 'completed',
         args: { 
@@ -200,6 +207,7 @@ describe('ToolHistoryItem', () => {
 
     it('should show diff preview for create_file', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'create_file',
         status: 'completed',
         args: { 
@@ -218,6 +226,7 @@ describe('ToolHistoryItem', () => {
 
     it('should not show diff preview for non-file operations', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',
         status: 'completed',
         args: { command: 'ls -la' },
@@ -233,6 +242,7 @@ describe('ToolHistoryItem', () => {
   describe('result display', () => {
     it('should display result text for successful tools', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',  // Changed from read_file which returns null
         status: 'completed',
         args: { command: 'echo test' },
@@ -246,6 +256,7 @@ describe('ToolHistoryItem', () => {
 
     it('should display error message for failed tools', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'read_file',
         status: 'failed',
         args: { file_path: '/nonexistent.txt' },
@@ -259,6 +270,7 @@ describe('ToolHistoryItem', () => {
 
     it('should handle empty results', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',
         status: 'completed',
         args: { command: 'touch file.txt' },
@@ -274,6 +286,7 @@ describe('ToolHistoryItem', () => {
     it('should handle very long results', () => {
       const longResult = 'a'.repeat(1000);
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'execute_command',  // Changed from read_file which returns null
         status: 'completed',
         args: { command: 'cat largefile' },
@@ -290,6 +303,7 @@ describe('ToolHistoryItem', () => {
   describe('edge cases', () => {
     it('should handle undefined tool status', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'some_tool',
         status: undefined as any,
         args: {},
@@ -304,6 +318,7 @@ describe('ToolHistoryItem', () => {
 
     it('should handle null result', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'some_tool',
         status: 'completed',
         args: {},
@@ -318,6 +333,7 @@ describe('ToolHistoryItem', () => {
 
     it('should handle missing args', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'some_tool',
         status: 'completed',
         args: undefined as any,
@@ -332,6 +348,7 @@ describe('ToolHistoryItem', () => {
 
     it('should handle complex nested args', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'complex_tool',
         status: 'completed',
         args: {
@@ -355,6 +372,7 @@ describe('ToolHistoryItem', () => {
   describe('styling', () => {
     it('should apply correct colors for status', () => {
       const successTool: ToolExecution = {
+        id: 'test-id',
         name: 'test',
         status: 'completed',
         args: {},
@@ -369,6 +387,7 @@ describe('ToolHistoryItem', () => {
 
     it('should apply dimmed style to result text', () => {
       const execution: ToolExecution = {
+        id: 'test-id',
         name: 'test',
         status: 'completed',
         args: {},

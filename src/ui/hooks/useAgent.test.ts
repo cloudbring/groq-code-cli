@@ -388,7 +388,7 @@ describe('useAgent', () => {
         useAgent(mockAgent)
       );
 
-      let messageId: string;
+      let messageId: string = '';
       act(() => {
         messageId = result.current.addMessage({
           role: 'user',
@@ -424,7 +424,8 @@ describe('useAgent', () => {
         useAgent(mockAgent)
       );
 
-      let id1: string, id2: string;
+      let id1: string = '';
+      let id2: string = '';
       act(() => {
         id1 = result.current.addMessage({
           role: 'user',

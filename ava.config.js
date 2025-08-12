@@ -11,5 +11,11 @@ export default {
 	],
 	nodeArguments: [
 		'--import=tsx'
+	],
+	environmentVariables: {
+		NODE_ENV: 'test'
+	},
+	require: [
+		'./test/component/setup-ava.js'
 	]
 };

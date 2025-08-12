@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, test } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import test from 'ava';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 
 const ExampleButton = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
 	<button onClick={onClick}>{children}</button>
@@ -16,42 +16,38 @@ const ExampleCounter = () => {
 	);
 };
 
-describe('Example Component Tests', () => {
-	describe('Button Component', () => {
-		test.concurrent('should render button with text', async () => {
-			const { container } = render(<ExampleButton onClick={() => {}}>Click me</ExampleButton>);
-			const button = container.querySelector('button');
-			expect(button).toBeTruthy();
-			expect(button?.textContent).toBe('Click me');
-		});
+test('ExampleButton - should render button with text', (t) => {
+	const { container } = render(<ExampleButton onClick={() => {}}>Click me</ExampleButton>);
+	const button = container.querySelector('button');
+	t.truthy(button);
+	t.is(button?.textContent, 'Click me');
+	cleanup();
+});
 
-		test.concurrent('should handle click events', async () => {
-			let clicked = false;
-			const handleClick = () => { clicked = true; };
-			
-			const { container } = render(<ExampleButton onClick={handleClick}>Test</ExampleButton>);
-			const button = container.querySelector('button');
-			
-			fireEvent.click(button!);
-			expect(clicked).toBe(true);
-		});
-	});
+test('ExampleButton - should handle click events', (t) => {
+	let clicked = false;
+	const handleClick = () => { clicked = true; };
+	
+	const { container } = render(<ExampleButton onClick={handleClick}>Test</ExampleButton>);
+	const button = container.querySelector('button');
+	
+	fireEvent.click(button!);
+	t.is(clicked, true);
+	cleanup();
+});
 
-	describe('Counter Component', () => {
-		test('should increment counter on click', async () => {
-			// This test modifies component state, so it shouldn't be concurrent
-			render(<ExampleCounter />);
-			
-			const count = screen.getByTestId('count');
-			const button = screen.getByText('Increment');
-			
-			expect(count.textContent).toBe('0');
-			
-			fireEvent.click(button);
-			expect(count.textContent).toBe('1');
-			
-			fireEvent.click(button);
-			expect(count.textContent).toBe('2');
-		});
-	});
+test('ExampleCounter - should increment counter on click', (t) => {
+	const { container, getByTestId, getByText } = render(<ExampleCounter />);
+	
+	const count = getByTestId('count');
+	const button = getByText('Increment');
+	
+	t.is(count.textContent, '0');
+	
+	fireEvent.click(button);
+	t.is(count.textContent, '1');
+	
+	fireEvent.click(button);
+	t.is(count.textContent, '2');
+	cleanup();
 });

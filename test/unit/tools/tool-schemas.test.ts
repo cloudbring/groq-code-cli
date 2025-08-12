@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import {
   ToolSchema,
   READ_FILE_SCHEMA,
@@ -14,378 +15,342 @@ import {
   SAFE_TOOLS,
   APPROVAL_REQUIRED_TOOLS,
   DANGEROUS_TOOLS
-} from '../../../src/tools/tool-schemas.js';
+} from '@src/tools/tool-schemas.js';
 
-describe('ToolSchema Interface', () => {
-  it('should define correct structure', () => {
-    const schema: ToolSchema = {
-      type: 'function',
-      function: {
-        name: 'test_function',
-        description: 'Test function',
-        parameters: {
-          type: 'object',
-          properties: {
-            param1: { type: 'string' }
-          },
-          required: ['param1']
-        }
+test.afterEach.always(t => {
+  sinon.restore();
+});
+
+test('ToolSchema Interface - should define correct structure', t => {
+  const schema: ToolSchema = {
+    type: 'function',
+    function: {
+      name: 'test_function',
+      description: 'Test function',
+      parameters: {
+        type: 'object',
+        properties: {
+          param1: { type: 'string' }
+        },
+        required: ['param1']
       }
-    };
+    }
+  };
 
-    expect(schema.type).toBe('function');
-    expect(schema.function.name).toBe('test_function');
-    expect(schema.function.description).toBe('Test function');
-    expect(schema.function.parameters.type).toBe('object');
+  t.is(schema.type, 'function');
+  t.is(schema.function.name, 'test_function');
+  t.is(schema.function.description, 'Test function');
+  t.is(schema.function.parameters.type, 'object');
+});
+
+test('READ_FILE_SCHEMA - should have correct structure and properties', t => {
+  t.is(READ_FILE_SCHEMA.type, 'function');
+  t.is(READ_FILE_SCHEMA.function.name, 'read_file');
+  t.true(READ_FILE_SCHEMA.function.description.includes('Read file contents'));
+  t.is(READ_FILE_SCHEMA.function.parameters.type, 'object');
+  t.deepEqual(READ_FILE_SCHEMA.function.parameters.required, ['file_path']);
+});
+
+test('READ_FILE_SCHEMA - should have correct parameter definitions', t => {
+  const props = READ_FILE_SCHEMA.function.parameters.properties;
+  t.is(props.file_path.type, 'string');
+  t.true(props.file_path.description.includes('Path to file'));
+  t.is(props.start_line.type, 'integer');
+  t.true(props.start_line.description.includes('Starting line number'));
+  t.is(props.start_line.minimum, 1);
+  t.is(props.end_line.type, 'integer');
+  t.true(props.end_line.description.includes('Ending line number'));
+  t.is(props.end_line.minimum, 1);
+});
+
+test('READ_FILE_SCHEMA - should include usage guidelines', t => {
+  t.true(READ_FILE_SCHEMA.function.description.includes('REQUIRED before edit_file'));
+  t.true(READ_FILE_SCHEMA.function.description.includes('Example:'));
+});
+
+test('CREATE_FILE_SCHEMA - should have correct structure and properties', t => {
+  t.is(CREATE_FILE_SCHEMA.type, 'function');
+  t.is(CREATE_FILE_SCHEMA.function.name, 'create_file');
+  t.true(CREATE_FILE_SCHEMA.function.description.includes('Create NEW files'));
+  t.deepEqual(CREATE_FILE_SCHEMA.function.parameters.required, ['file_path', 'content']);
+});
+
+test('CREATE_FILE_SCHEMA - should have file type enumeration', t => {
+  const props = CREATE_FILE_SCHEMA.function.parameters.properties;
+  t.deepEqual(props.file_type.enum, ['file', 'directory']);
+  t.is(props.file_type.default, 'file');
+});
+
+test('CREATE_FILE_SCHEMA - should have overwrite option', t => {
+  const props = CREATE_FILE_SCHEMA.function.parameters.properties;
+  t.is(props.overwrite.type, 'boolean');
+  t.is(props.overwrite.default, false);
+});
+
+test('CREATE_FILE_SCHEMA - should include safety warnings', t => {
+  t.true(CREATE_FILE_SCHEMA.function.description.includes('CRITICAL'));
+  t.true(CREATE_FILE_SCHEMA.function.description.includes('check if file exists first'));
+});
+
+test('EDIT_FILE_SCHEMA - should have correct structure and properties', t => {
+  t.is(EDIT_FILE_SCHEMA.type, 'function');
+  t.is(EDIT_FILE_SCHEMA.function.name, 'edit_file');
+  t.true(EDIT_FILE_SCHEMA.function.description.includes('Modify EXISTING files'));
+  t.deepEqual(EDIT_FILE_SCHEMA.function.parameters.required, ['file_path', 'old_text', 'new_text']);
+});
+
+test('EDIT_FILE_SCHEMA - should have replace_all option', t => {
+  const props = EDIT_FILE_SCHEMA.function.parameters.properties;
+  t.is(props.replace_all.type, 'boolean');
+  t.is(props.replace_all.default, false);
+});
+
+test('EDIT_FILE_SCHEMA - should include mandatory requirements', t => {
+  t.true(EDIT_FILE_SCHEMA.function.description.includes('MANDATORY: Always read_file first'));
+  t.true(EDIT_FILE_SCHEMA.function.description.includes('exact text replacement'));
+});
+
+test('DELETE_FILE_SCHEMA - should have correct structure and properties', t => {
+  t.is(DELETE_FILE_SCHEMA.type, 'function');
+  t.is(DELETE_FILE_SCHEMA.function.name, 'delete_file');
+  t.true(DELETE_FILE_SCHEMA.function.description.includes('Remove files or directories'));
+  t.deepEqual(DELETE_FILE_SCHEMA.function.parameters.required, ['file_path']);
+});
+
+test('DELETE_FILE_SCHEMA - should have recursive option', t => {
+  const props = DELETE_FILE_SCHEMA.function.parameters.properties;
+  t.is(props.recursive.type, 'boolean');
+  t.is(props.recursive.default, false);
+});
+
+test('DELETE_FILE_SCHEMA - should include caution warning', t => {
+  t.true(DELETE_FILE_SCHEMA.function.description.includes('Use with caution'));
+});
+
+test('EXECUTE_COMMAND_SCHEMA - should have correct structure and properties', t => {
+  t.is(EXECUTE_COMMAND_SCHEMA.type, 'function');
+  t.is(EXECUTE_COMMAND_SCHEMA.function.name, 'execute_command');
+  t.true(EXECUTE_COMMAND_SCHEMA.function.description.includes('Run shell commands'));
+  t.deepEqual(EXECUTE_COMMAND_SCHEMA.function.parameters.required, ['command', 'command_type']);
+});
+
+test('EXECUTE_COMMAND_SCHEMA - should have command type enumeration', t => {
+  const props = EXECUTE_COMMAND_SCHEMA.function.parameters.properties;
+  t.deepEqual(props.command_type.enum, ['bash', 'python', 'setup', 'run']);
+});
+
+test('EXECUTE_COMMAND_SCHEMA - should have timeout constraints', t => {
+  const props = EXECUTE_COMMAND_SCHEMA.function.parameters.properties;
+  t.is(props.timeout.minimum, 1);
+  t.is(props.timeout.maximum, 300);
+});
+
+test('EXECUTE_COMMAND_SCHEMA - should include safety warnings', t => {
+  t.true(EXECUTE_COMMAND_SCHEMA.function.description.includes('SAFETY WARNING'));
+  t.true(EXECUTE_COMMAND_SCHEMA.function.description.includes('NEVER use for commands that run indefinitely'));
+});
+
+test('SEARCH_FILES_SCHEMA - should have correct structure and properties', t => {
+  t.is(SEARCH_FILES_SCHEMA.type, 'function');
+  t.is(SEARCH_FILES_SCHEMA.function.name, 'search_files');
+  t.true(SEARCH_FILES_SCHEMA.function.description.includes('Find text patterns'));
+  t.deepEqual(SEARCH_FILES_SCHEMA.function.parameters.required, ['pattern']);
+});
+
+test('SEARCH_FILES_SCHEMA - should have pattern type enumeration', t => {
+  const props = SEARCH_FILES_SCHEMA.function.parameters.properties;
+  t.deepEqual(props.pattern_type.enum, ['substring', 'regex', 'exact', 'fuzzy']);
+  t.is(props.pattern_type.default, 'substring');
+});
+
+test('SEARCH_FILES_SCHEMA - should have result limits', t => {
+  const props = SEARCH_FILES_SCHEMA.function.parameters.properties;
+  t.is(props.max_results.minimum, 1);
+  t.is(props.max_results.maximum, 1000);
+  t.is(props.max_results.default, 100);
+});
+
+test('SEARCH_FILES_SCHEMA - should have context line constraints', t => {
+  const props = SEARCH_FILES_SCHEMA.function.parameters.properties;
+  t.is(props.context_lines.minimum, 0);
+  t.is(props.context_lines.maximum, 10);
+  t.is(props.context_lines.default, 0);
+});
+
+test('LIST_FILES_SCHEMA - should have correct structure and properties', t => {
+  t.is(LIST_FILES_SCHEMA.type, 'function');
+  t.is(LIST_FILES_SCHEMA.function.name, 'list_files');
+  t.true(LIST_FILES_SCHEMA.function.description.includes('Browse directory contents'));
+  t.deepEqual(LIST_FILES_SCHEMA.function.parameters.required, []);
+});
+
+test('LIST_FILES_SCHEMA - should have default values', t => {
+  const props = LIST_FILES_SCHEMA.function.parameters.properties;
+  t.is(props.directory.default, '.');
+  t.is(props.pattern.default, '*');
+  t.is(props.recursive.default, false);
+  t.is(props.show_hidden.default, false);
+});
+
+test('LIST_FILES_SCHEMA - should include file existence check guidance', t => {
+  t.true(LIST_FILES_SCHEMA.function.description.includes('CHECK IF FILES EXIST'));
+  t.true(LIST_FILES_SCHEMA.function.description.includes('create_file vs edit_file'));
+});
+
+test('CREATE_TASKS_SCHEMA - should have correct structure and properties', t => {
+  t.is(CREATE_TASKS_SCHEMA.type, 'function');
+  t.is(CREATE_TASKS_SCHEMA.function.name, 'create_tasks');
+  t.true(CREATE_TASKS_SCHEMA.function.description.includes('Break down complex requests'));
+  t.deepEqual(CREATE_TASKS_SCHEMA.function.parameters.required, ['user_query', 'tasks']);
+});
+
+test('CREATE_TASKS_SCHEMA - should have task structure definition', t => {
+  const props = CREATE_TASKS_SCHEMA.function.parameters.properties;
+  const taskItems = props.tasks.items;
+  t.is(taskItems.properties.id.type, 'string');
+  t.true(taskItems.properties.id.description.includes('Unique task identifier'));
+  t.deepEqual(taskItems.properties.status.enum, ['pending', 'in_progress', 'completed']);
+  t.deepEqual(taskItems.required, ['id', 'description']);
+});
+
+test('UPDATE_TASKS_SCHEMA - should have correct structure and properties', t => {
+  t.is(UPDATE_TASKS_SCHEMA.type, 'function');
+  t.is(UPDATE_TASKS_SCHEMA.function.name, 'update_tasks');
+  t.true(UPDATE_TASKS_SCHEMA.function.description.includes('Update task progress'));
+  t.deepEqual(UPDATE_TASKS_SCHEMA.function.parameters.required, ['task_updates']);
+});
+
+test('UPDATE_TASKS_SCHEMA - should have update structure definition', t => {
+  const props = UPDATE_TASKS_SCHEMA.function.parameters.properties;
+  const updateItems = props.task_updates.items;
+  t.deepEqual(updateItems.properties.status.enum, ['pending', 'in_progress', 'completed']);
+  t.deepEqual(updateItems.required, ['id', 'status']);
+});
+
+test('ALL_TOOL_SCHEMAS - should contain all defined schemas', t => {
+  const expectedSchemas = [
+    READ_FILE_SCHEMA,
+    CREATE_FILE_SCHEMA,
+    EDIT_FILE_SCHEMA,
+    DELETE_FILE_SCHEMA,
+    SEARCH_FILES_SCHEMA,
+    LIST_FILES_SCHEMA,
+    CREATE_TASKS_SCHEMA,
+    UPDATE_TASKS_SCHEMA,
+    EXECUTE_COMMAND_SCHEMA
+  ];
+  
+  t.is(ALL_TOOL_SCHEMAS.length, expectedSchemas.length);
+  t.true(expectedSchemas.every(schema => ALL_TOOL_SCHEMAS.includes(schema)));
+});
+
+test('ALL_TOOL_SCHEMAS - should have unique tool names', t => {
+  const toolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
+  const uniqueNames = [...new Set(toolNames)];
+  t.is(toolNames.length, uniqueNames.length);
+});
+
+test('ALL_TOOL_SCHEMAS - should all be function type', t => {
+  ALL_TOOL_SCHEMAS.forEach(schema => {
+    t.is(schema.type, 'function');
   });
 });
 
-describe('READ_FILE_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(READ_FILE_SCHEMA.type).toBe('function');
-    expect(READ_FILE_SCHEMA.function.name).toBe('read_file');
-    expect(READ_FILE_SCHEMA.function.description).toContain('Read file contents');
-    expect(READ_FILE_SCHEMA.function.parameters.type).toBe('object');
-    expect(READ_FILE_SCHEMA.function.parameters.required).toEqual(['file_path']);
-  });
-
-  it('should have correct parameter definitions', () => {
-    const props = READ_FILE_SCHEMA.function.parameters.properties;
-    expect(props.file_path).toEqual({
-      type: 'string',
-      description: expect.stringContaining('Path to file')
-    });
-    expect(props.start_line).toEqual({
-      type: 'integer',
-      description: expect.stringContaining('Starting line number'),
-      minimum: 1
-    });
-    expect(props.end_line).toEqual({
-      type: 'integer',
-      description: expect.stringContaining('Ending line number'),
-      minimum: 1
-    });
-  });
-
-  it('should include usage guidelines', () => {
-    expect(READ_FILE_SCHEMA.function.description).toContain('REQUIRED before edit_file');
-    expect(READ_FILE_SCHEMA.function.description).toContain('Example:');
+test('ALL_TOOL_SCHEMAS - should all have descriptions and parameters', t => {
+  ALL_TOOL_SCHEMAS.forEach(schema => {
+    t.truthy(schema.function.name);
+    t.truthy(schema.function.description);
+    t.truthy(schema.function.parameters);
+    t.is(schema.function.parameters.type, 'object');
   });
 });
 
-describe('CREATE_FILE_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(CREATE_FILE_SCHEMA.type).toBe('function');
-    expect(CREATE_FILE_SCHEMA.function.name).toBe('create_file');
-    expect(CREATE_FILE_SCHEMA.function.description).toContain('Create NEW files');
-    expect(CREATE_FILE_SCHEMA.function.parameters.required).toEqual(['file_path', 'content']);
-  });
+test('Tool Categories - SAFE_TOOLS should contain read-only and task management tools', t => {
+  t.deepEqual(SAFE_TOOLS, [
+    'read_file',
+    'list_files',
+    'search_files',
+    'create_tasks',
+    'update_tasks'
+  ]);
+});
 
-  it('should have file type enumeration', () => {
-    const props = CREATE_FILE_SCHEMA.function.parameters.properties;
-    expect(props.file_type.enum).toEqual(['file', 'directory']);
-    expect(props.file_type.default).toBe('file');
-  });
-
-  it('should have overwrite option', () => {
-    const props = CREATE_FILE_SCHEMA.function.parameters.properties;
-    expect(props.overwrite.type).toBe('boolean');
-    expect(props.overwrite.default).toBe(false);
-  });
-
-  it('should include safety warnings', () => {
-    expect(CREATE_FILE_SCHEMA.function.description).toContain('CRITICAL');
-    expect(CREATE_FILE_SCHEMA.function.description).toContain('check if file exists first');
+test('Tool Categories - SAFE_TOOLS should be a subset of all tools', t => {
+  const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
+  SAFE_TOOLS.forEach(toolName => {
+    t.true(allToolNames.includes(toolName));
   });
 });
 
-describe('EDIT_FILE_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(EDIT_FILE_SCHEMA.type).toBe('function');
-    expect(EDIT_FILE_SCHEMA.function.name).toBe('edit_file');
-    expect(EDIT_FILE_SCHEMA.function.description).toContain('Modify EXISTING files');
-    expect(EDIT_FILE_SCHEMA.function.parameters.required).toEqual(['file_path', 'old_text', 'new_text']);
-  });
+test('Tool Categories - APPROVAL_REQUIRED_TOOLS should contain file modification tools', t => {
+  t.deepEqual(APPROVAL_REQUIRED_TOOLS, [
+    'create_file',
+    'edit_file'
+  ]);
+});
 
-  it('should have replace_all option', () => {
-    const props = EDIT_FILE_SCHEMA.function.parameters.properties;
-    expect(props.replace_all.type).toBe('boolean');
-    expect(props.replace_all.default).toBe(false);
-  });
-
-  it('should include mandatory requirements', () => {
-    expect(EDIT_FILE_SCHEMA.function.description).toContain('MANDATORY: Always read_file first');
-    expect(EDIT_FILE_SCHEMA.function.description).toContain('exact text replacement');
+test('Tool Categories - APPROVAL_REQUIRED_TOOLS should be a subset of all tools', t => {
+  const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
+  APPROVAL_REQUIRED_TOOLS.forEach(toolName => {
+    t.true(allToolNames.includes(toolName));
   });
 });
 
-describe('DELETE_FILE_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(DELETE_FILE_SCHEMA.type).toBe('function');
-    expect(DELETE_FILE_SCHEMA.function.name).toBe('delete_file');
-    expect(DELETE_FILE_SCHEMA.function.description).toContain('Remove files or directories');
-    expect(DELETE_FILE_SCHEMA.function.parameters.required).toEqual(['file_path']);
-  });
+test('Tool Categories - DANGEROUS_TOOLS should contain destructive and execution tools', t => {
+  t.deepEqual(DANGEROUS_TOOLS, [
+    'delete_file',
+    'execute_command'
+  ]);
+});
 
-  it('should have recursive option', () => {
-    const props = DELETE_FILE_SCHEMA.function.parameters.properties;
-    expect(props.recursive.type).toBe('boolean');
-    expect(props.recursive.default).toBe(false);
-  });
-
-  it('should include caution warning', () => {
-    expect(DELETE_FILE_SCHEMA.function.description).toContain('Use with caution');
+test('Tool Categories - DANGEROUS_TOOLS should be a subset of all tools', t => {
+  const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
+  DANGEROUS_TOOLS.forEach(toolName => {
+    t.true(allToolNames.includes(toolName));
   });
 });
 
-describe('EXECUTE_COMMAND_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(EXECUTE_COMMAND_SCHEMA.type).toBe('function');
-    expect(EXECUTE_COMMAND_SCHEMA.function.name).toBe('execute_command');
-    expect(EXECUTE_COMMAND_SCHEMA.function.description).toContain('Run shell commands');
-    expect(EXECUTE_COMMAND_SCHEMA.function.parameters.required).toEqual(['command', 'command_type']);
-  });
+test('Tool Categories - should have no overlap between categories', t => {
+  const allCategorized = [...SAFE_TOOLS, ...APPROVAL_REQUIRED_TOOLS, ...DANGEROUS_TOOLS];
+  const uniqueCategorized = [...new Set(allCategorized)];
+  t.is(allCategorized.length, uniqueCategorized.length);
+});
 
-  it('should have command type enumeration', () => {
-    const props = EXECUTE_COMMAND_SCHEMA.function.parameters.properties;
-    expect(props.command_type.enum).toEqual(['bash', 'python', 'setup', 'run']);
-  });
-
-  it('should have timeout constraints', () => {
-    const props = EXECUTE_COMMAND_SCHEMA.function.parameters.properties;
-    expect(props.timeout.minimum).toBe(1);
-    expect(props.timeout.maximum).toBe(300);
-  });
-
-  it('should include safety warnings', () => {
-    expect(EXECUTE_COMMAND_SCHEMA.function.description).toContain('SAFETY WARNING');
-    expect(EXECUTE_COMMAND_SCHEMA.function.description).toContain('NEVER use for commands that run indefinitely');
+test('Tool Categories - should categorize all tools', t => {
+  const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
+  const allCategorized = [...SAFE_TOOLS, ...APPROVAL_REQUIRED_TOOLS, ...DANGEROUS_TOOLS];
+  
+  allToolNames.forEach(toolName => {
+    t.true(allCategorized.includes(toolName));
   });
 });
 
-describe('SEARCH_FILES_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(SEARCH_FILES_SCHEMA.type).toBe('function');
-    expect(SEARCH_FILES_SCHEMA.function.name).toBe('search_files');
-    expect(SEARCH_FILES_SCHEMA.function.description).toContain('Find text patterns');
-    expect(SEARCH_FILES_SCHEMA.function.parameters.required).toEqual(['pattern']);
-  });
-
-  it('should have pattern type enumeration', () => {
-    const props = SEARCH_FILES_SCHEMA.function.parameters.properties;
-    expect(props.pattern_type.enum).toEqual(['substring', 'regex', 'exact', 'fuzzy']);
-    expect(props.pattern_type.default).toBe('substring');
-  });
-
-  it('should have result limits', () => {
-    const props = SEARCH_FILES_SCHEMA.function.parameters.properties;
-    expect(props.max_results.minimum).toBe(1);
-    expect(props.max_results.maximum).toBe(1000);
-    expect(props.max_results.default).toBe(100);
-  });
-
-  it('should have context line constraints', () => {
-    const props = SEARCH_FILES_SCHEMA.function.parameters.properties;
-    expect(props.context_lines.minimum).toBe(0);
-    expect(props.context_lines.maximum).toBe(10);
-    expect(props.context_lines.default).toBe(0);
-  });
-});
-
-describe('LIST_FILES_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(LIST_FILES_SCHEMA.type).toBe('function');
-    expect(LIST_FILES_SCHEMA.function.name).toBe('list_files');
-    expect(LIST_FILES_SCHEMA.function.description).toContain('Browse directory contents');
-    expect(LIST_FILES_SCHEMA.function.parameters.required).toEqual([]);
-  });
-
-  it('should have default values', () => {
-    const props = LIST_FILES_SCHEMA.function.parameters.properties;
-    expect(props.directory.default).toBe('.');
-    expect(props.pattern.default).toBe('*');
-    expect(props.recursive.default).toBe(false);
-    expect(props.show_hidden.default).toBe(false);
-  });
-
-  it('should include file existence check guidance', () => {
-    expect(LIST_FILES_SCHEMA.function.description).toContain('CHECK IF FILES EXIST');
-    expect(LIST_FILES_SCHEMA.function.description).toContain('create_file vs edit_file');
-  });
-});
-
-describe('CREATE_TASKS_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(CREATE_TASKS_SCHEMA.type).toBe('function');
-    expect(CREATE_TASKS_SCHEMA.function.name).toBe('create_tasks');
-    expect(CREATE_TASKS_SCHEMA.function.description).toContain('Break down complex requests');
-    expect(CREATE_TASKS_SCHEMA.function.parameters.required).toEqual(['user_query', 'tasks']);
-  });
-
-  it('should have task structure definition', () => {
-    const props = CREATE_TASKS_SCHEMA.function.parameters.properties;
-    const taskItems = props.tasks.items;
-    expect(taskItems.properties.id).toEqual({
-      type: 'string',
-      description: expect.stringContaining('Unique task identifier')
-    });
-    expect(taskItems.properties.status.enum).toEqual(['pending', 'in_progress', 'completed']);
-    expect(taskItems.required).toEqual(['id', 'description']);
-  });
-});
-
-describe('UPDATE_TASKS_SCHEMA', () => {
-  it('should have correct structure and properties', () => {
-    expect(UPDATE_TASKS_SCHEMA.type).toBe('function');
-    expect(UPDATE_TASKS_SCHEMA.function.name).toBe('update_tasks');
-    expect(UPDATE_TASKS_SCHEMA.function.description).toContain('Update task progress');
-    expect(UPDATE_TASKS_SCHEMA.function.parameters.required).toEqual(['task_updates']);
-  });
-
-  it('should have update structure definition', () => {
-    const props = UPDATE_TASKS_SCHEMA.function.parameters.properties;
-    const updateItems = props.task_updates.items;
-    expect(updateItems.properties.status.enum).toEqual(['pending', 'in_progress', 'completed']);
-    expect(updateItems.required).toEqual(['id', 'status']);
-  });
-});
-
-describe('ALL_TOOL_SCHEMAS', () => {
-  it('should contain all defined schemas', () => {
-    const expectedSchemas = [
-      READ_FILE_SCHEMA,
-      CREATE_FILE_SCHEMA,
-      EDIT_FILE_SCHEMA,
-      DELETE_FILE_SCHEMA,
-      SEARCH_FILES_SCHEMA,
-      LIST_FILES_SCHEMA,
-      CREATE_TASKS_SCHEMA,
-      UPDATE_TASKS_SCHEMA,
-      EXECUTE_COMMAND_SCHEMA
-    ];
-    
-    expect(ALL_TOOL_SCHEMAS).toHaveLength(expectedSchemas.length);
-    expect(ALL_TOOL_SCHEMAS).toEqual(expect.arrayContaining(expectedSchemas));
-  });
-
-  it('should have unique tool names', () => {
-    const toolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
-    const uniqueNames = [...new Set(toolNames)];
-    expect(toolNames).toHaveLength(uniqueNames.length);
-  });
-
-  it('should all be function type', () => {
-    ALL_TOOL_SCHEMAS.forEach(schema => {
-      expect(schema.type).toBe('function');
-    });
-  });
-
-  it('should all have descriptions and parameters', () => {
-    ALL_TOOL_SCHEMAS.forEach(schema => {
-      expect(schema.function.name).toBeTruthy();
-      expect(schema.function.description).toBeTruthy();
-      expect(schema.function.parameters).toBeDefined();
-      expect(schema.function.parameters.type).toBe('object');
-    });
-  });
-});
-
-describe('Tool Categories', () => {
-  describe('SAFE_TOOLS', () => {
-    it('should contain read-only and task management tools', () => {
-      expect(SAFE_TOOLS).toEqual([
-        'read_file',
-        'list_files',
-        'search_files',
-        'create_tasks',
-        'update_tasks'
-      ]);
-    });
-
-    it('should be a subset of all tools', () => {
-      const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
-      SAFE_TOOLS.forEach(toolName => {
-        expect(allToolNames).toContain(toolName);
-      });
-    });
-  });
-
-  describe('APPROVAL_REQUIRED_TOOLS', () => {
-    it('should contain file modification tools', () => {
-      expect(APPROVAL_REQUIRED_TOOLS).toEqual([
-        'create_file',
-        'edit_file'
-      ]);
-    });
-
-    it('should be a subset of all tools', () => {
-      const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
-      APPROVAL_REQUIRED_TOOLS.forEach(toolName => {
-        expect(allToolNames).toContain(toolName);
-      });
-    });
-  });
-
-  describe('DANGEROUS_TOOLS', () => {
-    it('should contain destructive and execution tools', () => {
-      expect(DANGEROUS_TOOLS).toEqual([
-        'delete_file',
-        'execute_command'
-      ]);
-    });
-
-    it('should be a subset of all tools', () => {
-      const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
-      DANGEROUS_TOOLS.forEach(toolName => {
-        expect(allToolNames).toContain(toolName);
-      });
-    });
-  });
-
-  it('should have no overlap between categories', () => {
-    const allCategorized = [...SAFE_TOOLS, ...APPROVAL_REQUIRED_TOOLS, ...DANGEROUS_TOOLS];
-    const uniqueCategorized = [...new Set(allCategorized)];
-    expect(allCategorized).toHaveLength(uniqueCategorized.length);
-  });
-
-  it('should categorize all tools', () => {
-    const allToolNames = ALL_TOOL_SCHEMAS.map(schema => schema.function.name);
-    const allCategorized = [...SAFE_TOOLS, ...APPROVAL_REQUIRED_TOOLS, ...DANGEROUS_TOOLS];
-    
-    allToolNames.forEach(toolName => {
-      expect(allCategorized).toContain(toolName);
-    });
-  });
-});
-
-describe('Schema Validation', () => {
-  it('should have consistent parameter descriptions', () => {
-    ALL_TOOL_SCHEMAS.forEach(schema => {
-      Object.values(schema.function.parameters.properties).forEach((param: any) => {
-        if (param.type === 'string' && param.description) {
-          expect(param.description).not.toMatch(/^\s*$/); // Not just whitespace
-          expect(param.description.length).toBeGreaterThan(5);
-        }
-      });
-    });
-  });
-
-  it('should have path parameters with consistent guidance', () => {
-    const pathTools = [READ_FILE_SCHEMA, CREATE_FILE_SCHEMA, EDIT_FILE_SCHEMA, DELETE_FILE_SCHEMA];
-    pathTools.forEach(schema => {
-      const pathParam = schema.function.parameters.properties.file_path;
-      expect(pathParam.description).toContain('DO NOT use absolute paths');
-      expect(pathParam.description).toContain('leading slash');
-    });
-  });
-
-  it('should have directory parameters with consistent guidance', () => {
-    const dirTools = [SEARCH_FILES_SCHEMA, LIST_FILES_SCHEMA];
-    dirTools.forEach(schema => {
-      const dirParam = schema.function.parameters.properties.directory;
-      if (dirParam) {
-        expect(dirParam.description).toContain('DO NOT include leading slash');
+test('Schema Validation - should have consistent parameter descriptions', t => {
+  ALL_TOOL_SCHEMAS.forEach(schema => {
+    Object.values(schema.function.parameters.properties).forEach((param: any) => {
+      if (param.type === 'string' && param.description) {
+        t.notRegex(param.description, /^\s*$/); // Not just whitespace
+        t.true(param.description.length > 5);
       }
     });
+  });
+});
+
+test('Schema Validation - should have path parameters with consistent guidance', t => {
+  const pathTools = [READ_FILE_SCHEMA, CREATE_FILE_SCHEMA, EDIT_FILE_SCHEMA, DELETE_FILE_SCHEMA];
+  pathTools.forEach(schema => {
+    const pathParam = schema.function.parameters.properties.file_path;
+    t.true(pathParam.description.includes('DO NOT use absolute paths'));
+    t.true(pathParam.description.includes('leading slash'));
+  });
+});
+
+test('Schema Validation - should have directory parameters with consistent guidance', t => {
+  const dirTools = [SEARCH_FILES_SCHEMA, LIST_FILES_SCHEMA];
+  dirTools.forEach(schema => {
+    const dirParam = schema.function.parameters.properties.directory;
+    if (dirParam) {
+      t.true(dirParam.description.includes('DO NOT include leading slash'));
+    }
   });
 });

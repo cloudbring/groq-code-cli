@@ -1,91 +1,78 @@
 import test from 'ava';
 import sinon from 'sinon';
+import mockFs from 'mock-fs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { writeFile, createDirectory, deleteFile, displayTree, shouldIgnore } from '@src/utils/file-ops';
 
-// Sinon stubs for mocked functions
-let mockMkdir: sinon.SinonStub;
-let mockWriteFile: sinon.SinonStub;
-let mockStat: sinon.SinonStub;
-let mockUnlink: sinon.SinonStub;
-let mockRmdir: sinon.SinonStub;
-let mockAccess: sinon.SinonStub;
-let mockReaddir: sinon.SinonStub;
-let mockFsPromises: any;
-
+// Setup filesystem mocks before each test
 test.beforeEach(() => {
 	sinon.restore();
 	
-	// Create a mock promises object with stub methods
-	mockFsPromises = {
-		mkdir: sinon.stub(),
-		writeFile: sinon.stub(),
-		stat: sinon.stub(),
-		unlink: sinon.stub(),
-		rmdir: sinon.stub(),
-		access: sinon.stub(),
-		readdir: sinon.stub()
-	};
-	
-	// Stub the promises property of fs
-	sinon.stub(fs, 'promises').value(mockFsPromises);
-	
-	// Assign individual stubs for easier access
-	mockMkdir = mockFsPromises.mkdir;
-	mockWriteFile = mockFsPromises.writeFile;
-	mockStat = mockFsPromises.stat;
-	mockUnlink = mockFsPromises.unlink;
-	mockRmdir = mockFsPromises.rmdir;
-	mockAccess = mockFsPromises.access;
-	mockReaddir = mockFsPromises.readdir;
+	// Setup mock filesystem with test files and directories
+	mockFs({
+		'/test': {
+			'file.txt': 'existing content',
+			'dir': {}
+		},
+		'/mockdir': {
+			'dir1': {},
+			'file1.txt': 'content1',
+			'file2.js': 'content2',
+			'.hidden': 'hidden content',
+			'visible.txt': 'visible content',
+			'.env': 'env content'
+		}
+	});
 });
 
 test.afterEach.always(() => {
 	sinon.restore();
+	mockFs.restore();
 });
 
 test('writeFile - should write file successfully', async (t) => {
-	mockMkdir.resolves(undefined);
-	mockWriteFile.resolves(undefined);
-
-	const result = await writeFile('/test/file.txt', 'content');
+	const result = await writeFile('/test/newfile.txt', 'content');
 	
 	t.is(result, true);
-	t.true(mockMkdir.calledWith(path.dirname('/test/file.txt'), { recursive: true }));
-	t.true(mockWriteFile.calledWith(path.resolve('/test/file.txt'), 'content', 'utf-8'));
+	
+	// Verify the file was actually written
+	const written = await fs.promises.readFile('/test/newfile.txt', 'utf-8');
+	t.is(written, 'content');
 });
 
 test('writeFile - should return false on error', async (t) => {
-	mockMkdir.rejects(new Error('Permission denied'));
-
-	const result = await writeFile('/test/file.txt', 'content');
+	// Try to write to a non-existent directory without creating it
+	const result = await writeFile('/nonexistent/path/file.txt', 'content');
 	
 	t.is(result, false);
 });
 
 test('writeFile - should handle force and backup parameters', async (t) => {
-	mockMkdir.resolves(undefined);
-	mockWriteFile.resolves(undefined);
-
-	const result = await writeFile('/test/file.txt', 'content', true, true);
+	const result = await writeFile('/test/file.txt', 'new content', true, true);
 	
 	t.is(result, true);
+	
+	// Verify the file content was updated
+	const written = await fs.promises.readFile('/test/file.txt', 'utf-8');
+	t.is(written, 'new content');
 });
 
 test('createDirectory - should create directory successfully', async (t) => {
-	mockMkdir.resolves(undefined);
-
-	const result = await createDirectory('/test/dir');
+	const result = await createDirectory('/test/newdir');
 	
 	t.is(result, true);
-	t.true(mockMkdir.calledWith('/test/dir', { recursive: true }));
+	
+	// Verify the directory was created
+	const stats = await fs.promises.stat('/test/newdir');
+	t.true(stats.isDirectory());
 });
 
 test('createDirectory - should return false on error', async (t) => {
-	mockMkdir.rejects(new Error('Permission denied'));
-
-	const result = await createDirectory('/test/dir');
+	// Mock-fs doesn't easily simulate permission errors, so this test
+	// would need to be adapted or the function behavior examined
+	// For now, test creating over an existing file (which should fail)
+	const result = await createDirectory('/test/file.txt'); // file.txt already exists as a file
 	
 	t.is(result, false);
 });

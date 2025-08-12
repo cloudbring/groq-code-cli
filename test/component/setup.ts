@@ -1,7 +1,3 @@
-import { afterEach } from 'vitest';
-import { cleanup } from '@testing-library/react';
-
-// Cleanup after each test case
-afterEach(() => {
-	cleanup();
-});
+// Setup file for component tests
+// Cleanup is handled by individual test files using Ava hooks
+// This file is kept for compatibility but no longer needed with Ava

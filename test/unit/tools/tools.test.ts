@@ -27,19 +27,33 @@ let mockFsUnlink: sinon.SinonStub;
 let mockFsRmdir: sinon.SinonStub;
 let mockFsReaddir: sinon.SinonStub;
 let mockProcessCwd: sinon.SinonStub;
+let mockFsPromises: any;
 
 // Setup stubs before each test
 test.beforeEach(() => {
   // Restore any existing stubs first
   sinon.restore();
   
-  // Create stubs for fs operations
-  mockFsAccess = sinon.stub(fs.promises, 'access');
-  mockFsStat = sinon.stub(fs.promises, 'stat');
-  mockFsReadFile = sinon.stub(fs.promises, 'readFile');
-  mockFsUnlink = sinon.stub(fs.promises, 'unlink');
-  mockFsRmdir = sinon.stub(fs.promises, 'rmdir');
-  mockFsReaddir = sinon.stub(fs.promises, 'readdir');
+  // Create a mock promises object with stub methods
+  mockFsPromises = {
+    access: sinon.stub(),
+    stat: sinon.stub(),
+    readFile: sinon.stub(),
+    unlink: sinon.stub(),
+    rmdir: sinon.stub(),
+    readdir: sinon.stub()
+  };
+  
+  // Stub the promises property of fs
+  sinon.stub(fs, 'promises').value(mockFsPromises);
+  
+  // Assign individual stubs for easier access
+  mockFsAccess = mockFsPromises.access;
+  mockFsStat = mockFsPromises.stat;
+  mockFsReadFile = mockFsPromises.readFile;
+  mockFsUnlink = mockFsPromises.unlink;
+  mockFsRmdir = mockFsPromises.rmdir;
+  mockFsReaddir = mockFsPromises.readdir;
   
   // Create stub for process.cwd
   mockProcessCwd = sinon.stub(process, 'cwd');

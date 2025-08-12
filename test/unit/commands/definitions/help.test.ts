@@ -1,11 +1,10 @@
 import test from 'ava';
 import sinon from 'sinon';
-import { helpCommand } from '@src/commands/definitions/help';
 import { CommandContext } from '@src/commands/base';
-import * as commandsIndex from '@src/commands/index';
 
-// Mock the getAvailableCommands to avoid circular dependency
-const getAvailableCommandsStub = sinon.stub(commandsIndex, 'getAvailableCommands').returns([
+// Mock getAvailableCommands before importing help command
+import * as commandsIndex from '@src/commands/index';
+sinon.stub(commandsIndex, 'getAvailableCommands').returns([
   { command: 'help', description: 'Show help and available commands' },
   { command: 'login', description: 'Login with Groq API key' },
   { command: 'model', description: 'Select AI model' },
@@ -13,15 +12,21 @@ const getAvailableCommandsStub = sinon.stub(commandsIndex, 'getAvailableCommands
   { command: 'reasoning', description: 'Toggle reasoning mode' },
 ]);
 
+// Now import help command
+import { helpCommand } from '@src/commands/definitions/help';
+
+const getAvailableCommandsStub = commandsIndex.getAvailableCommands as sinon.SinonStub;
+
 test.afterEach(() => {
-  sinon.restore();
-  getAvailableCommandsStub.returns([
-    { command: 'help', description: 'Show help and available commands' },
-    { command: 'login', description: 'Login with Groq API key' },
-    { command: 'model', description: 'Select AI model' },
-    { command: 'clear', description: 'Clear chat history' },
-    { command: 'reasoning', description: 'Toggle reasoning mode' },
-  ]);
+  if (getAvailableCommandsStub) {
+    getAvailableCommandsStub.returns([
+      { command: 'help', description: 'Show help and available commands' },
+      { command: 'login', description: 'Login with Groq API key' },
+      { command: 'model', description: 'Select AI model' },
+      { command: 'clear', description: 'Clear chat history' },
+      { command: 'reasoning', description: 'Toggle reasoning mode' },
+    ]);
+  }
 });
 
 test('helpCommand - should have correct command properties', (t) => {

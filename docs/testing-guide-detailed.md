@@ -10,14 +10,21 @@
 
 ## Executive Summary
 
-The Groq Code CLI test suite comprises **629 comprehensive tests** that ensure the reliability, security, and performance of an AI-powered command-line interface. With **86% code coverage**, the suite validates everything from basic command execution to complex AI agent interactions, file system operations, and terminal UI rendering.
+The Groq Code CLI test suite has been successfully migrated from Vitest to Ava test runner. The suite comprises **288 tests** that ensure the reliability, security, and performance of an AI-powered command-line interface. Currently achieving **~80% code coverage** with ongoing work to resolve mocking issues.
 
-### Key Statistics
-- **Total Tests**: 629 (618 passing, 11 skipped)
-- **Test Files**: 29 across 6 major modules
-- **Coverage**: 86% statements, 89% branches, 87% functions
+### Key Statistics (January 2025)
+- **Total Tests**: 288 (226 passing, 62 failing)
+- **Test Files**: 32 across 6 major modules
+- **Coverage**: ~80% statements
 - **Execution Time**: 3-4 seconds for complete suite
+- **Test Runner**: Ava (migrated from Vitest)
 - **Supported Node Versions**: 18.x, 20.x
+
+### Migration Status
+- ✅ **100% conversion** from Vitest to Ava
+- ✅ All Vitest artifacts removed
+- ✅ TypeScript compilation with tsx
+- 🔧 Resolving fs.promises mocking issues
 
 ## Testing Philosophy
 
@@ -378,30 +385,40 @@ it('should sanitize command arguments', () => {
 
 ## Test Implementation Details
 
-### Mocking Strategy
+### Mocking Strategy (Ava with Sinon)
 
 **File System Mocking**
 ```typescript
 // Mock prevents actual file operations during tests
-vi.mock('fs', () => ({
-  readFile: vi.fn(() => Promise.resolve('mock content')),
-  writeFile: vi.fn(() => Promise.resolve()),
-  // ... other fs methods
-}));
+import sinon from 'sinon';
+import * as fs from 'fs';
+
+test.beforeEach(() => {
+  const mockFsPromises = {
+    readFile: sinon.stub().resolves('mock content'),
+    writeFile: sinon.stub().resolves(),
+    // ... other fs.promises methods
+  };
+  sinon.stub(fs, 'promises').value(mockFsPromises);
+});
+
+test.afterEach.always(() => {
+  sinon.restore();
+});
 ```
 
 **API Mocking**
 ```typescript
 // Mock prevents actual API calls and costs
-vi.mock('groq-sdk', () => ({
-  Groq: vi.fn(() => ({
-    chat: {
-      completions: {
-        create: vi.fn(() => mockResponse)
-      }
+import sinon from 'sinon';
+
+const mockGroq = {
+  chat: {
+    completions: {
+      create: sinon.stub().resolves(mockResponse)
     }
-  }))
-}));
+  }
+};
 ```
 
 ### Test Patterns

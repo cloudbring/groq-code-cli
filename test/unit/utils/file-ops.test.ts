@@ -4,42 +4,60 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { writeFile, createDirectory, deleteFile, displayTree, shouldIgnore } from '@src/utils/file-ops';
 
-// Mock fs module
-const mockFs = {
-	promises: {
+// Sinon stubs for mocked functions
+let mockMkdir: sinon.SinonStub;
+let mockWriteFile: sinon.SinonStub;
+let mockStat: sinon.SinonStub;
+let mockUnlink: sinon.SinonStub;
+let mockRmdir: sinon.SinonStub;
+let mockAccess: sinon.SinonStub;
+let mockReaddir: sinon.SinonStub;
+let mockFsPromises: any;
+
+test.beforeEach(() => {
+	sinon.restore();
+	
+	// Create a mock promises object with stub methods
+	mockFsPromises = {
 		mkdir: sinon.stub(),
 		writeFile: sinon.stub(),
 		stat: sinon.stub(),
 		unlink: sinon.stub(),
 		rmdir: sinon.stub(),
 		access: sinon.stub(),
-		readdir: sinon.stub(),
-	},
-};
-
-// Replace fs module with mock
-Object.defineProperty(fs, 'promises', {
-	value: mockFs.promises,
-	writable: false,
+		readdir: sinon.stub()
+	};
+	
+	// Stub the promises property of fs
+	sinon.stub(fs, 'promises').value(mockFsPromises);
+	
+	// Assign individual stubs for easier access
+	mockMkdir = mockFsPromises.mkdir;
+	mockWriteFile = mockFsPromises.writeFile;
+	mockStat = mockFsPromises.stat;
+	mockUnlink = mockFsPromises.unlink;
+	mockRmdir = mockFsPromises.rmdir;
+	mockAccess = mockFsPromises.access;
+	mockReaddir = mockFsPromises.readdir;
 });
 
-test.beforeEach(() => {
+test.afterEach.always(() => {
 	sinon.restore();
 });
 
 test('writeFile - should write file successfully', async (t) => {
-	mockFs.promises.mkdir.resolves(undefined);
-	mockFs.promises.writeFile.resolves(undefined);
+	mockMkdir.resolves(undefined);
+	mockWriteFile.resolves(undefined);
 
 	const result = await writeFile('/test/file.txt', 'content');
 	
 	t.is(result, true);
-	t.true(mockFs.promises.mkdir.calledWith(path.dirname('/test/file.txt'), { recursive: true }));
-	t.true(mockFs.promises.writeFile.calledWith(path.resolve('/test/file.txt'), 'content', 'utf-8'));
+	t.true(mockMkdir.calledWith(path.dirname('/test/file.txt'), { recursive: true }));
+	t.true(mockWriteFile.calledWith(path.resolve('/test/file.txt'), 'content', 'utf-8'));
 });
 
 test('writeFile - should return false on error', async (t) => {
-	mockFs.promises.mkdir.rejects(new Error('Permission denied'));
+	mockMkdir.rejects(new Error('Permission denied'));
 
 	const result = await writeFile('/test/file.txt', 'content');
 	
@@ -47,8 +65,8 @@ test('writeFile - should return false on error', async (t) => {
 });
 
 test('writeFile - should handle force and backup parameters', async (t) => {
-	mockFs.promises.mkdir.resolves(undefined);
-	mockFs.promises.writeFile.resolves(undefined);
+	mockMkdir.resolves(undefined);
+	mockWriteFile.resolves(undefined);
 
 	const result = await writeFile('/test/file.txt', 'content', true, true);
 	
@@ -56,16 +74,16 @@ test('writeFile - should handle force and backup parameters', async (t) => {
 });
 
 test('createDirectory - should create directory successfully', async (t) => {
-	mockFs.promises.mkdir.resolves(undefined);
+	mockMkdir.resolves(undefined);
 
 	const result = await createDirectory('/test/dir');
 	
 	t.is(result, true);
-	t.true(mockFs.promises.mkdir.calledWith('/test/dir', { recursive: true }));
+	t.true(mockMkdir.calledWith('/test/dir', { recursive: true }));
 });
 
 test('createDirectory - should return false on error', async (t) => {
-	mockFs.promises.mkdir.rejects(new Error('Permission denied'));
+	mockMkdir.rejects(new Error('Permission denied'));
 
 	const result = await createDirectory('/test/dir');
 	
@@ -73,38 +91,38 @@ test('createDirectory - should return false on error', async (t) => {
 });
 
 test('deleteFile - should delete file when force is true', async (t) => {
-	mockFs.promises.stat.resolves({ isFile: () => true, isDirectory: () => false } as any);
-	mockFs.promises.unlink.resolves(undefined);
+	mockStat.resolves({ isFile: () => true, isDirectory: () => false } as any);
+	mockUnlink.resolves(undefined);
 
 	const result = await deleteFile('/test/file.txt', true);
 	
 	t.is(result, true);
-	t.true(mockFs.promises.unlink.calledWith(path.resolve('/test/file.txt')));
+	t.true(mockUnlink.calledWith(path.resolve('/test/file.txt')));
 });
 
 test('deleteFile - should delete directory when force is true', async (t) => {
-	mockFs.promises.stat.resolves({ isFile: () => false, isDirectory: () => true } as any);
-	mockFs.promises.rmdir.resolves(undefined);
+	mockStat.resolves({ isFile: () => false, isDirectory: () => true } as any);
+	mockRmdir.resolves(undefined);
 
 	const result = await deleteFile('/test/dir', true);
 	
 	t.is(result, true);
-	t.true(mockFs.promises.rmdir.calledWith(path.resolve('/test/dir'), { recursive: true }));
+	t.true(mockRmdir.calledWith(path.resolve('/test/dir'), { recursive: true }));
 });
 
 test('deleteFile - should return false when force is false', async (t) => {
-	mockFs.promises.stat.resolves({ isFile: () => true, isDirectory: () => false } as any);
+	mockStat.resolves({ isFile: () => true, isDirectory: () => false } as any);
 
 	const result = await deleteFile('/test/file.txt', false);
 	
 	t.is(result, false);
-	t.false(mockFs.promises.unlink.called);
+	t.false(mockUnlink.called);
 });
 
 test('deleteFile - should return false when file does not exist', async (t) => {
 	const error = new Error('File not found') as any;
 	error.code = 'ENOENT';
-	mockFs.promises.stat.rejects(error);
+	mockStat.rejects(error);
 
 	const result = await deleteFile('/test/nonexistent.txt', true);
 	
@@ -112,7 +130,7 @@ test('deleteFile - should return false when file does not exist', async (t) => {
 });
 
 test('deleteFile - should return false on other errors', async (t) => {
-	mockFs.promises.stat.rejects(new Error('Permission denied'));
+	mockStat.rejects(new Error('Permission denied'));
 
 	const result = await deleteFile('/test/file.txt', true);
 	
@@ -120,8 +138,8 @@ test('deleteFile - should return false on other errors', async (t) => {
 });
 
 test('displayTree - should display directory tree', async (t) => {
-	mockFs.promises.access.resolves(undefined);
-	mockFs.promises.readdir.resolves([
+	mockAccess.resolves(undefined);
+	mockReaddir.resolves([
 		{ name: 'dir1', isDirectory: () => true } as any,
 		{ name: 'file1.txt', isDirectory: () => false } as any,
 		{ name: 'file2.js', isDirectory: () => false } as any,
@@ -135,7 +153,7 @@ test('displayTree - should display directory tree', async (t) => {
 });
 
 test('displayTree - should handle directory not found', async (t) => {
-	mockFs.promises.access.rejects(new Error('Not found'));
+	mockAccess.rejects(new Error('Not found'));
 
 	const result = await displayTree('/nonexistent');
 	

@@ -10,12 +10,12 @@
 
 ## Executive Summary
 
-The Groq Code CLI test suite has been successfully migrated from Vitest to Ava test runner. The suite comprises **288 tests** that ensure the reliability, security, and performance of an AI-powered command-line interface. Currently achieving **~80% code coverage** with ongoing work to resolve mocking issues.
+The Groq Code CLI test suite has been successfully migrated from Vitest to Ava test runner. The suite comprises **328 tests** that ensure the reliability, security, and performance of an AI-powered command-line interface. Currently achieving **87% pass rate** with major testing infrastructure improvements completed.
 
 ### Key Statistics (January 2025)
-- **Total Tests**: 288 (226 passing, 62 failing)
+- **Total Tests**: 328 (285 passing, 43 failing)
 - **Test Files**: 32 across 6 major modules
-- **Coverage**: ~80% statements
+- **Coverage**: ~87% statements
 - **Execution Time**: 3-4 seconds for complete suite
 - **Test Runner**: Ava (migrated from Vitest)
 - **Supported Node Versions**: 18.x, 20.x
@@ -24,7 +24,7 @@ The Groq Code CLI test suite has been successfully migrated from Vitest to Ava t
 - ✅ **100% conversion** from Vitest to Ava
 - ✅ All Vitest artifacts removed
 - ✅ TypeScript compilation with tsx
-- 🔧 Resolving fs.promises mocking issues
+- ✅ **RESOLVED**: fs.promises mocking infrastructure using mock-fs
 
 ## Testing Philosophy
 

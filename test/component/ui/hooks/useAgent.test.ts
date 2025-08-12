@@ -35,12 +35,13 @@ function createMockCallbacks() {
   };
 }
 
-// Setup cleanup - only cleanup sinon after each test
+// Setup cleanup - cleanup both React Testing Library and sinon after each test
 test.afterEach.always(() => {
+  cleanup();
   sinon.restore();
 });
 
-test('useAgent - should initialize with correct default values', (t) => {
+test.serial('useAgent - should initialize with correct default values', (t) => {
   const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
     useAgent(agent)
@@ -60,7 +61,7 @@ test('useAgent - should initialize with correct default values', (t) => {
   }
 });
 
-test('useAgent - should provide all required methods', (t) => {
+test.serial('useAgent - should provide all required methods', (t) => {
   const { result, unmount } = renderHook(() => 
     useAgent(createMockAgent().agent)
   );
@@ -80,11 +81,13 @@ test('useAgent - should provide all required methods', (t) => {
   }
 });
 
-test('useAgent - should add user message and call agent', async (t) => {
-  mockAgent.chat.resolves(undefined);
+test.serial('useAgent - should add user message and call agent', async (t) => {
+  const { agent } = createMockAgent();
+  const callbacks = createMockCallbacks();
+  agent.chat.resolves(undefined);
   
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
 
   try {
@@ -96,23 +99,24 @@ test('useAgent - should add user message and call agent', async (t) => {
     t.is(result.current.messages[0].role, 'user');
     t.is(result.current.messages[0].content, 'Hello, world!');
     t.deepEqual(result.current.userMessageHistory, ['Hello, world!']);
-    t.true(mockAgent.chat.calledWith('Hello, world!'));
-    t.true(mockOnStartRequest.called);
-    t.true(mockOnCompleteRequest.called);
+    t.true(agent.chat.calledWith('Hello, world!'));
+    t.true(callbacks.mockOnStartRequest.called);
+    t.true(callbacks.mockOnCompleteRequest.called);
   } finally {
     unmount();
   }
 });
 
-test('useAgent - should not send message if already processing', async (t) => {
+test.serial('useAgent - should not send message if already processing', async (t) => {
+  const { agent } = createMockAgent();
+  agent.chat.callsFake(() => new Promise(() => {}));
+  
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
     // Start first message (make it hang)
-    mockAgent.chat.callsFake(() => new Promise(() => {}));
-    
     await act(async () => {
       result.current.sendMessage('First message');
     });
@@ -132,11 +136,13 @@ test('useAgent - should not send message if already processing', async (t) => {
   }
 });
 
-test('useAgent - should handle chat errors gracefully', async (t) => {
-  mockAgent.chat.rejects(new Error('API Error'));
+test.serial('useAgent - should handle chat errors gracefully', async (t) => {
+  const { agent } = createMockAgent();
+  const callbacks = createMockCallbacks();
+  agent.chat.rejects(new Error('API Error'));
   
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
 
   try {
@@ -148,13 +154,14 @@ test('useAgent - should handle chat errors gracefully', async (t) => {
     t.is(result.current.messages[1].role, 'system');
     t.true(result.current.messages[1].content.includes('Error: API Error'));
     t.is(result.current.isProcessing, false);
-    t.true(mockOnCompleteRequest.called);
+    t.true(callbacks.mockOnCompleteRequest.called);
   } finally {
     unmount();
   }
 });
 
-test('useAgent - should handle API errors with status and error details', async (t) => {
+test.serial('useAgent - should handle API errors with status and error details', async (t) => {
+  const { agent } = createMockAgent();
   const apiError = new Error('Unauthorized');
   (apiError as any).status = 401;
   (apiError as any).error = {
@@ -164,10 +171,10 @@ test('useAgent - should handle API errors with status and error details', async 
     }
   };
   
-  mockAgent.chat.rejects(apiError);
+  agent.chat.rejects(apiError);
   
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -181,14 +188,15 @@ test('useAgent - should handle API errors with status and error details', async 
   }
 });
 
-test('useAgent - should ignore abort errors', async (t) => {
+test.serial('useAgent - should ignore abort errors', async (t) => {
+  const { agent } = createMockAgent();
   const abortError = new Error('Request was aborted');
   abortError.name = 'AbortError';
   
-  mockAgent.chat.rejects(abortError);
+  agent.chat.rejects(abortError);
   
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -204,10 +212,12 @@ test('useAgent - should ignore abort errors', async (t) => {
   }
 });
 
-test('useAgent - should handle onThinkingText callback', async (t) => {
+test.serial('useAgent - should handle onThinkingText callback', async (t) => {
   // Initialize the hook and trigger sendMessage to set up the tool callbacks
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -217,16 +227,18 @@ test('useAgent - should handle onThinkingText callback', async (t) => {
     });
     
     // Test that tool callbacks are properly set up during initialization
-    t.true(mockAgent.setToolCallbacks.called);
+    t.true(agent.setToolCallbacks.called);
     t.is(typeof toolCallbacks.onThinkingText, 'function');
   } finally {
     unmount();
   }
 });
 
-test('useAgent - should handle onFinalMessage callback', async (t) => {
+test.serial('useAgent - should handle onFinalMessage callback', async (t) => {
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -240,9 +252,11 @@ test('useAgent - should handle onFinalMessage callback', async (t) => {
   }
 });
 
-test('useAgent - should handle onToolStart callback', async (t) => {
+test.serial('useAgent - should handle onToolStart callback', async (t) => {
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -256,9 +270,11 @@ test('useAgent - should handle onToolStart callback', async (t) => {
   }
 });
 
-test('useAgent - should handle onToolEnd callback', async (t) => {
+test.serial('useAgent - should handle onToolEnd callback', async (t) => {
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -272,9 +288,11 @@ test('useAgent - should handle onToolEnd callback', async (t) => {
   }
 });
 
-test('useAgent - should handle onApiUsage callback', async (t) => {
+test.serial('useAgent - should handle onApiUsage callback', async (t) => {
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -291,7 +309,7 @@ test('useAgent - should handle onApiUsage callback', async (t) => {
       total_tokens: 30
     });
     
-    t.true(mockOnAddApiTokens.calledWith({
+    t.true(callbacks.mockOnAddApiTokens.calledWith({
       prompt_tokens: 10,
       completion_tokens: 20,
       total_tokens: 30
@@ -301,9 +319,11 @@ test('useAgent - should handle onApiUsage callback', async (t) => {
   }
 });
 
-test('useAgent - should handle onToolApproval callback', async (t) => {
+test.serial('useAgent - should handle onToolApproval callback', async (t) => {
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -317,9 +337,11 @@ test('useAgent - should handle onToolApproval callback', async (t) => {
   }
 });
 
-test('useAgent - should handle onMaxIterations callback', async (t) => {
+test.serial('useAgent - should handle onMaxIterations callback', async (t) => {
+  const { agent, toolCallbacks } = createMockAgent();
+  const callbacks = createMockCallbacks();
   const { result, unmount } = renderHook(() => 
-    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+    useAgent(agent, callbacks.mockOnStartRequest, callbacks.mockOnAddApiTokens, callbacks.mockOnPauseRequest, callbacks.mockOnResumeRequest, callbacks.mockOnCompleteRequest)
   );
   
   try {
@@ -333,9 +355,10 @@ test('useAgent - should handle onMaxIterations callback', async (t) => {
   }
 });
 
-test('useAgent - should approve tool execution', (t) => {
+test.serial('useAgent - should approve tool execution', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -346,9 +369,10 @@ test('useAgent - should approve tool execution', (t) => {
   }
 });
 
-test('useAgent - should reject tool execution', (t) => {
+test.serial('useAgent - should reject tool execution', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -367,7 +391,7 @@ test('useAgent - should reject tool execution', (t) => {
   }
 });
 
-test('useAgent - should set API key on agent', (t) => {
+test.serial('useAgent - should set API key on agent', (t) => {
   const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
     useAgent(agent)
@@ -384,9 +408,10 @@ test('useAgent - should set API key on agent', (t) => {
   }
 });
 
-test('useAgent - should toggle auto approve', (t) => {
+test.serial('useAgent - should toggle auto approve', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -397,22 +422,23 @@ test('useAgent - should toggle auto approve', (t) => {
     });
 
     t.is(result.current.sessionAutoApprove, true);
-    t.true(mockAgent.setSessionAutoApprove.calledWith(true));
+    t.true(agent.setSessionAutoApprove.calledWith(true));
 
     act(() => {
       result.current.toggleAutoApprove();
     });
 
     t.is(result.current.sessionAutoApprove, false);
-    t.true(mockAgent.setSessionAutoApprove.calledWith(false));
+    t.true(agent.setSessionAutoApprove.calledWith(false));
   } finally {
     unmount();
   }
 });
 
-test('useAgent - should clear history', (t) => {
+test.serial('useAgent - should clear history', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -432,15 +458,16 @@ test('useAgent - should clear history', (t) => {
 
     t.is(result.current.messages.length, 0);
     t.is(result.current.userMessageHistory.length, 0);
-    t.true(mockAgent.clearHistory.called);
+    t.true(agent.clearHistory.called);
   } finally {
     unmount();
   }
 });
 
-test('useAgent - should interrupt request', (t) => {
+test.serial('useAgent - should interrupt request', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -448,7 +475,7 @@ test('useAgent - should interrupt request', (t) => {
       result.current.interruptRequest();
     });
 
-    t.true(mockAgent.interrupt.called);
+    t.true(agent.interrupt.called);
     t.is(result.current.isProcessing, false);
     t.is(result.current.currentToolExecution, null);
     t.is(result.current.messages.length, 1);
@@ -459,9 +486,10 @@ test('useAgent - should interrupt request', (t) => {
   }
 });
 
-test('useAgent - should toggle reasoning display', (t) => {
+test.serial('useAgent - should toggle reasoning display', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -483,9 +511,10 @@ test('useAgent - should toggle reasoning display', (t) => {
   }
 });
 
-test('useAgent - should add message with generated id and timestamp', (t) => {
+test.serial('useAgent - should add message with generated id and timestamp', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -507,9 +536,10 @@ test('useAgent - should add message with generated id and timestamp', (t) => {
   }
 });
 
-test('useAgent - should add message with reasoning', (t) => {
+test.serial('useAgent - should add message with reasoning', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -527,9 +557,10 @@ test('useAgent - should add message with reasoning', (t) => {
   }
 });
 
-test('useAgent - should generate unique message ids', (t) => {
+test.serial('useAgent - should generate unique message ids', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -553,9 +584,10 @@ test('useAgent - should generate unique message ids', (t) => {
   }
 });
 
-test('useAgent - should identify tools that need approval', async (t) => {
+test.serial('useAgent - should identify tools that need approval', async (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -563,7 +595,7 @@ test('useAgent - should identify tools that need approval', async (t) => {
       await result.current.sendMessage('Test');
     });
 
-    const toolCallbacks = mockAgent.setToolCallbacks.getCall(0).args[0];
+    const toolCallbacks = agent.setToolCallbacks.getCall(0).args[0];
 
     // Test dangerous tool
     act(() => {
@@ -590,9 +622,10 @@ test('useAgent - should identify tools that need approval', async (t) => {
   }
 });
 
-test('useAgent - should handle tool execution status changes', async (t) => {
+test.serial('useAgent - should handle tool execution status changes', async (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -600,7 +633,7 @@ test('useAgent - should handle tool execution status changes', async (t) => {
       await result.current.sendMessage('Test');
     });
 
-    const toolCallbacks = mockAgent.setToolCallbacks.getCall(0).args[0];
+    const toolCallbacks = agent.setToolCallbacks.getCall(0).args[0];
 
     // Start tool
     act(() => {
@@ -620,9 +653,10 @@ test('useAgent - should handle tool execution status changes', async (t) => {
   }
 });
 
-test('useAgent - should handle empty message content', (t) => {
+test.serial('useAgent - should handle empty message content', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -639,9 +673,10 @@ test('useAgent - should handle empty message content', (t) => {
   }
 });
 
-test('useAgent - should handle multiple rapid message additions', (t) => {
+test.serial('useAgent - should handle multiple rapid message additions', (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {
@@ -664,25 +699,29 @@ test('useAgent - should handle multiple rapid message additions', (t) => {
   }
 });
 
-test('useAgent - should handle callback functions being undefined', (t) => {
+test.serial('useAgent - should handle callback functions being undefined', async (t) => {
+  const { agent } = createMockAgent();
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent) // No callback functions provided
+    useAgent(agent) // No callback functions provided
   );
 
   try {
-    t.notThrows(() => {
-      result.current.sendMessage('Test');
+    await t.notThrowsAsync(async () => {
+      await act(async () => {
+        await result.current.sendMessage('Test');
+      });
     });
   } finally {
     unmount();
   }
 });
 
-test('useAgent - should handle agent methods throwing errors', (t) => {
-  mockAgent.setApiKey.throws(new Error('Agent error'));
+test.serial('useAgent - should handle agent methods throwing errors', (t) => {
+  const { agent } = createMockAgent();
+  agent.setApiKey.throws(new Error('Agent error'));
 
   const { result, unmount } = renderHook(() => 
-    useAgent(createMockAgent().agent)
+    useAgent(agent)
   );
 
   try {

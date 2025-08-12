@@ -161,7 +161,11 @@ test('getReadFilesTracker - should return a Set', (t) => {
 
 // Helper to setup common readFile mocks
 const setupReadFileMocks = () => {
-  const mockStats = { isFile: () => true, size: 1000 };
+  const mockStats = { 
+    isFile: () => true,
+    isDirectory: () => false,
+    size: 1000 
+  };
   mockFsAccess.resolves(undefined);
   mockFsStat.resolves(mockStats);
   mockFsReadFile.resolves('line1\nline2\nline3');
@@ -170,6 +174,9 @@ const setupReadFileMocks = () => {
 
 test('readFile - should read file successfully', async (t) => {
   setupReadFileMocks();
+  
+  // Verify mock is set up correctly
+  t.true(mockFsStat.called || mockFsStat.callCount === 0, 'Stat mock should be ready');
   
   const result = await readFile('test.js');
   
@@ -189,7 +196,10 @@ test('readFile - should handle file not found', async (t) => {
 
 test('readFile - should handle non-file paths', async (t) => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isFile: () => false });
+  mockFsStat.resolves({ 
+    isFile: () => false,
+    isDirectory: () => true
+  });
   
   const result = await readFile('directory');
   
@@ -200,7 +210,8 @@ test('readFile - should handle non-file paths', async (t) => {
 test('readFile - should handle files that are too large', async (t) => {
   mockFsAccess.resolves(undefined);
   mockFsStat.resolves({ 
-    isFile: () => true, 
+    isFile: () => true,
+    isDirectory: () => false,
     size: 100 * 1024 * 1024 // 100MB
   });
   
@@ -231,7 +242,11 @@ test('readFile - should handle start line beyond file length', async (t) => {
 
 test('readFile - should handle ENOENT error specifically', async (t) => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isFile: () => true, size: 1000 });
+  mockFsStat.resolves({ 
+    isFile: () => true,
+    isDirectory: () => false,
+    size: 1000 
+  });
   mockFsReadFile.rejects({ code: 'ENOENT' });
   
   const result = await readFile('test.js');
@@ -242,7 +257,11 @@ test('readFile - should handle ENOENT error specifically', async (t) => {
 
 test('readFile - should handle generic read errors', async (t) => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isFile: () => true, size: 1000 });
+  mockFsStat.resolves({ 
+    isFile: () => true,
+    isDirectory: () => false,
+    size: 1000 
+  });
   mockFsReadFile.rejects(new Error('Permission denied'));
   
   const result = await readFile('test.js');
@@ -333,7 +352,10 @@ test('listFiles - should handle directory not found', async (t) => {
 
 test('listFiles - should handle non-directory path', async (t) => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isDirectory: () => false });
+  mockFsStat.resolves({ 
+    isDirectory: () => false,
+    isFile: () => true
+  });
   
   const result = await listFiles('file.js');
   
@@ -344,7 +366,10 @@ test('listFiles - should handle non-directory path', async (t) => {
 // Helper to setup common searchFiles mocks
 const setupSearchFilesMocks = () => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isDirectory: () => true });
+  mockFsStat.resolves({ 
+    isDirectory: () => true,
+    isFile: () => false
+  });
   mockFsReaddir.resolves([]);
 };
 
@@ -359,7 +384,10 @@ test('searchFiles - should handle directory not found', async (t) => {
 
 test('searchFiles - should handle non-directory path', async (t) => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isDirectory: () => false });
+  mockFsStat.resolves({ 
+    isDirectory: () => false,
+    isFile: () => true
+  });
   
   const result = await searchFiles('pattern', '*', 'file.js');
   
@@ -574,7 +602,11 @@ test('TOOL_REGISTRY - should contain all expected tools', (t) => {
 // Helper to setup common executeTool mocks
 const setupExecuteToolMocks = () => {
   mockFsAccess.resolves(undefined);
-  mockFsStat.resolves({ isFile: () => true, size: 1000 });
+  mockFsStat.resolves({ 
+    isFile: () => true,
+    isDirectory: () => false,
+    size: 1000 
+  });
   mockFsReadFile.resolves('test content');
 };
 

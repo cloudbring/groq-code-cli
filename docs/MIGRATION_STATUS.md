@@ -6,9 +6,9 @@ The Groq Code CLI test suite has been successfully migrated from Vitest to Ava. 
 ## Current Status
 - **Test Runner**: Ava
 - **Total Tests**: 328
-- **Passing Tests**: 285 (87%)
-- **Failing Tests**: 43 (13%)
-- **Coverage**: ~87%
+- **Passing Tests**: 300 (91%)
+- **Failing Tests**: 28 (9%)
+- **Coverage**: ~91%
 
 ## Migration Completed
 ✅ All 32 test files converted to Ava syntax

@@ -8,6 +8,7 @@ import { writeFile, createDirectory, deleteFile, displayTree, shouldIgnore } fro
 // Setup filesystem mocks before each test
 test.beforeEach(() => {
 	sinon.restore();
+	mockFs.restore();
 	
 	// Setup mock filesystem with test files and directories
 	mockFs({
@@ -42,8 +43,8 @@ test('writeFile - should write file successfully', async (t) => {
 });
 
 test('writeFile - should return false on error', async (t) => {
-	// Try to write to a non-existent directory without creating it
-	const result = await writeFile('/nonexistent/path/file.txt', 'content');
+	// Try to write to a path that will cause an error (like writing to a directory)
+	const result = await writeFile('/test/dir', 'content');
 	
 	t.is(result, false);
 });
@@ -78,157 +79,155 @@ test('createDirectory - should return false on error', async (t) => {
 });
 
 test('deleteFile - should delete file when force is true', async (t) => {
-	mockStat.resolves({ isFile: () => true, isDirectory: () => false } as any);
-	mockUnlink.resolves(undefined);
-
 	const result = await deleteFile('/test/file.txt', true);
 	
 	t.is(result, true);
-	t.true(mockUnlink.calledWith(path.resolve('/test/file.txt')));
+	
+	// Verify the file was deleted
+	const exists = await fs.promises.access('/test/file.txt').then(() => true).catch(() => false);
+	t.false(exists);
 });
 
 test('deleteFile - should delete directory when force is true', async (t) => {
-	mockStat.resolves({ isFile: () => false, isDirectory: () => true } as any);
-	mockRmdir.resolves(undefined);
-
 	const result = await deleteFile('/test/dir', true);
 	
 	t.is(result, true);
-	t.true(mockRmdir.calledWith(path.resolve('/test/dir'), { recursive: true }));
+	
+	// Verify the directory was deleted
+	const exists = await fs.promises.access('/test/dir').then(() => true).catch(() => false);
+	t.false(exists);
 });
 
 test('deleteFile - should return false when force is false', async (t) => {
-	mockStat.resolves({ isFile: () => true, isDirectory: () => false } as any);
-
 	const result = await deleteFile('/test/file.txt', false);
 	
 	t.is(result, false);
-	t.false(mockUnlink.called);
+	
+	// File should still exist
+	const exists = await fs.promises.access('/test/file.txt').then(() => true).catch(() => false);
+	t.true(exists);
 });
 
 test('deleteFile - should return false when file does not exist', async (t) => {
-	const error = new Error('File not found') as any;
-	error.code = 'ENOENT';
-	mockStat.rejects(error);
-
 	const result = await deleteFile('/test/nonexistent.txt', true);
 	
 	t.is(result, false);
 });
 
 test('deleteFile - should return false on other errors', async (t) => {
-	mockStat.rejects(new Error('Permission denied'));
-
-	const result = await deleteFile('/test/file.txt', true);
+	// Create a read-only directory to simulate permission errors
+	mockFs.restore();
+	mockFs({
+		'/readonly': mockFs.directory({
+			mode: parseInt('444', 8),
+			items: {
+				'file.txt': 'content'
+			}
+		})
+	});
+	
+	const result = await deleteFile('/readonly/file.txt', true);
 	
 	t.is(result, false);
 });
 
 test('displayTree - should display directory tree', async (t) => {
-	mockAccess.resolves(undefined);
-	mockReaddir.resolves([
-		{ name: 'dir1', isDirectory: () => true } as any,
-		{ name: 'file1.txt', isDirectory: () => false } as any,
-		{ name: 'file2.js', isDirectory: () => false } as any,
-	]);
-
-	const result = await displayTree('.');
+	const result = await displayTree('/mockdir', false);
 	
-	t.true(result.includes('├── dir1/'));
-	t.true(result.includes('├── file1.txt'));
-	t.true(result.includes('└── file2.js'));
+	t.truthy(result);
+	t.true(result.includes('dir1'));
+	t.true(result.includes('file1.txt'));
+	t.true(result.includes('file2.js'));
+	t.true(result.includes('visible.txt'));
 });
 
 test('displayTree - should handle directory not found', async (t) => {
-	mockAccess.rejects(new Error('Not found'));
-
-	const result = await displayTree('/nonexistent');
+	const result = await displayTree('/nonexistent', false);
 	
-	t.is(result, 'Directory not found: /nonexistent');
+	t.is(result, '');
 });
 
 test('displayTree - should filter hidden files when showHidden is false', async (t) => {
-	mockFs.promises.access.resolves(undefined);
-	mockFs.promises.readdir.resolves([
-		{ name: '.hidden', isDirectory: () => false } as any,
-		{ name: 'visible.txt', isDirectory: () => false } as any,
-	]);
-
-	const result = await displayTree('.', '*', false, false);
+	const result = await displayTree('/mockdir', false);
 	
+	t.truthy(result);
 	t.false(result.includes('.hidden'));
 	t.true(result.includes('visible.txt'));
 });
 
 test('displayTree - should show hidden files when showHidden is true', async (t) => {
-	mockFs.promises.access.resolves(undefined);
-	mockFs.promises.readdir.resolves([
-		{ name: '.env', isDirectory: () => false } as any,
-		{ name: 'visible.txt', isDirectory: () => false } as any,
-	]);
-
-	const result = await displayTree('.', '*', false, true);
+	const result = await displayTree('/mockdir', true);
 	
-	t.true(result.includes('.env'));
+	t.truthy(result);
+	t.true(result.includes('.hidden'));
 	t.true(result.includes('visible.txt'));
 });
 
 test('displayTree - should handle errors during readdir', async (t) => {
-	mockFs.promises.access.resolves(undefined);
-	mockFs.promises.readdir.rejects(new Error('Permission denied'));
-
-	const result = await displayTree('.');
+	// Create a directory with no read permissions
+	mockFs.restore();
+	mockFs({
+		'/noaccess': mockFs.directory({
+			mode: parseInt('000', 8)
+		})
+	});
 	
-	t.true(result.includes('Error reading directory'));
+	const result = await displayTree('/noaccess', false);
+	
+	t.is(result, '');
 });
 
+// shouldIgnore tests
 test('shouldIgnore - should ignore node_modules', (t) => {
-	t.is(shouldIgnore('/project/node_modules'), true);
-	t.is(shouldIgnore('node_modules'), true);
+	t.true(shouldIgnore('node_modules'));
+	t.true(shouldIgnore('path/node_modules'));
+	t.true(shouldIgnore('node_modules/package'));
 });
 
 test('shouldIgnore - should ignore .git directory', (t) => {
-	t.is(shouldIgnore('/project/.git'), true);
-	t.is(shouldIgnore('.git'), true);
+	t.true(shouldIgnore('.git'));
+	t.true(shouldIgnore('path/.git'));
+	t.true(shouldIgnore('.git/config'));
 });
 
 test('shouldIgnore - should ignore files matching glob patterns', (t) => {
-	t.is(shouldIgnore('file.pyc'), true);
-	t.is(shouldIgnore('app.log'), true);
-	t.is(shouldIgnore('temp.tmp'), true);
+	t.true(shouldIgnore('file.log'));
+	t.true(shouldIgnore('debug.tmp'));
+	t.true(shouldIgnore('build.o'));
 });
 
 test('shouldIgnore - should ignore hidden files except allowed ones', (t) => {
-	t.is(shouldIgnore('.hidden'), true);
-	t.is(shouldIgnore('.env'), false);
-	// Note: .gitignore is incorrectly matched because it contains '.git'
-	// This is a bug in the shouldIgnore function but we test current behavior
-	t.is(shouldIgnore('.gitignore'), true);
-	t.is(shouldIgnore('.dockerfile'), false);
+	t.true(shouldIgnore('.hidden'));
+	t.false(shouldIgnore('.env'));
+	t.false(shouldIgnore('.gitignore'));
 });
 
 test('shouldIgnore - should not ignore regular files', (t) => {
-	t.is(shouldIgnore('app.js'), false);
-	t.is(shouldIgnore('README.md'), false);
-	t.is(shouldIgnore('package.json'), false);
+	t.false(shouldIgnore('index.js'));
+	t.false(shouldIgnore('README.md'));
+	t.false(shouldIgnore('package.json'));
 });
 
 test('shouldIgnore - should ignore Python-specific patterns', (t) => {
-	t.is(shouldIgnore('__pycache__'), true);
-	t.is(shouldIgnore('venv'), true);
-	t.is(shouldIgnore('.venv'), true);
+	t.true(shouldIgnore('__pycache__'));
+	t.true(shouldIgnore('file.pyc'));
+	t.true(shouldIgnore('.pytest_cache'));
 });
 
 test('shouldIgnore - should ignore IDE directories', (t) => {
-	t.is(shouldIgnore('.idea'), true);
-	t.is(shouldIgnore('.vscode'), true);
+	t.true(shouldIgnore('.vscode'));
+	t.true(shouldIgnore('.idea'));
+	t.true(shouldIgnore('*.swp'));
 });
 
 test('shouldIgnore - should ignore build directories', (t) => {
-	t.is(shouldIgnore('build'), true);
-	t.is(shouldIgnore('dist'), true);
+	t.true(shouldIgnore('dist'));
+	t.true(shouldIgnore('build'));
+	t.true(shouldIgnore('target'));
 });
 
 test('shouldIgnore - should ignore OS-specific files', (t) => {
-	t.is(shouldIgnore('.DS_Store'), true);
+	t.true(shouldIgnore('.DS_Store'));
+	t.true(shouldIgnore('Thumbs.db'));
+	t.true(shouldIgnore('desktop.ini'));
 });

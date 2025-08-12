@@ -315,7 +315,7 @@ export async function listFiles(directory: string = '.', pattern: string = '*', 
     }
 
     // Get tree display output
-    const treeOutput = await displayTree(directory, pattern, recursive, showHidden);
+    const treeOutput = await displayTree(directory, showHidden);
 
     return createToolResponse(true, treeOutput, `Listed ${directory}`);
 

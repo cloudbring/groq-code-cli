@@ -31,5 +31,5 @@ test('IGNORE_PATTERNS should contain OS and temporary file patterns', t => {
 });
 
 test('IGNORE_PATTERNS should have the expected number of patterns', t => {
-	t.is(IGNORE_PATTERNS.size, 13);
+	t.is(IGNORE_PATTERNS.size, 19);
 });

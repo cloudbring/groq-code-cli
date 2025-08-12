@@ -8,16 +8,21 @@ import { ConfigManager } from '@src/utils/local-settings';
 const mockHomeDir = '/tmp/test-home';
 const expectedConfigPath = path.join(mockHomeDir, '.groq', 'local-settings.json');
 
-// Mock variables for tracking calls (not needed with mock-fs approach)
+// Mock os.homedir at the module level
+let originalHomedir: () => string;
+
+test.before(() => {
+	originalHomedir = os.homedir;
+	// Override os.homedir directly
+	(os as any).homedir = () => mockHomeDir;
+});
+
+test.after.always(() => {
+	// Restore original homedir
+	(os as any).homedir = originalHomedir;
+});
 
 test.beforeEach(() => {
-	// Create a stub that actually works by replacing the method
-	const originalHomedir = os.homedir;
-	os.homedir = () => mockHomeDir;
-	
-	// Store original for cleanup
-	(os as any)._originalHomedir = originalHomedir;
-
 	// Setup mock filesystem
 	mockFs({
 		[mockHomeDir]: {
@@ -30,12 +35,6 @@ test.afterEach.always(() => {
 	// Restore mocks
 	sinon.restore();
 	mockFs.restore();
-	
-	// Restore original os.homedir if we replaced it
-	if ((os as any)._originalHomedir) {
-		os.homedir = (os as any)._originalHomedir;
-		delete (os as any)._originalHomedir;
-	}
 });
 
 test('ConfigManager constructor - should initialize with correct config path', (t) => {

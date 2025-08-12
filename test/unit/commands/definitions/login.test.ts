@@ -1,68 +1,67 @@
-import { describe, it, expect, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import { loginCommand } from '@src/commands/definitions/login';
 import { CommandContext } from '@src/commands/base';
 
-describe('loginCommand', () => {
-  it('should have correct command properties', () => {
-    expect(loginCommand.command).toBe('login');
-    expect(loginCommand.description).toBe('Login with your credentials');
-    expect(typeof loginCommand.handler).toBe('function');
-  });
+test('loginCommand - should have correct command properties', (t) => {
+  t.is(loginCommand.command, 'login');
+  t.is(loginCommand.description, 'Login with your credentials');
+  t.is(typeof loginCommand.handler, 'function');
+});
 
-  it('should call setShowLogin with true', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('loginCommand - should call setShowLogin with true', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    loginCommand.handler(mockContext);
+  loginCommand.handler(mockContext);
 
-    expect(mockContext.setShowLogin).toHaveBeenCalledTimes(1);
-    expect(mockContext.setShowLogin).toHaveBeenCalledWith(true);
-  });
+  t.is(mockContext.setShowLogin.callCount, 1);
+  t.true(mockContext.setShowLogin.calledWith(true));
+});
 
-  it('should not call other context methods', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-    };
+test('loginCommand - should not call other context methods', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+  };
 
-    loginCommand.handler(mockContext);
+  loginCommand.handler(mockContext);
 
-    expect(mockContext.addMessage).not.toHaveBeenCalled();
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowModelSelector).not.toHaveBeenCalled();
-    expect(mockContext.toggleReasoning).not.toHaveBeenCalled();
-  });
+  t.false(mockContext.addMessage.called);
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowModelSelector.called);
+  t.false(mockContext.toggleReasoning.called);
+});
 
-  it('should work with minimal context', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('loginCommand - should work with minimal context', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    expect(() => loginCommand.handler(mockContext)).not.toThrow();
-    expect(mockContext.setShowLogin).toHaveBeenCalledWith(true);
-  });
+  t.notThrows(() => loginCommand.handler(mockContext));
+  t.true(mockContext.setShowLogin.calledWith(true));
+});
 
-  it('should handle context destructuring correctly', () => {
-    const mockSetShowLogin = vi.fn();
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: mockSetShowLogin,
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: false,
-    };
+test('loginCommand - should handle context destructuring correctly', (t) => {
+  const mockSetShowLogin = sinon.stub();
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: mockSetShowLogin,
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: false,
+  };
 
-    loginCommand.handler(mockContext);
+  loginCommand.handler(mockContext);
 
-    expect(mockSetShowLogin).toHaveBeenCalledWith(true);
-  });
+  t.true(mockSetShowLogin.calledWith(true));
 });

@@ -1,39 +1,35 @@
-import { describe, it, expect, test } from 'vitest';
+import test from 'ava';
 import { IGNORE_PATTERNS } from '@src/utils/constants';
 
-describe('constants', () => {
-	describe('IGNORE_PATTERNS', () => {
-		test.concurrent('should be a Set', async () => {
-			expect(IGNORE_PATTERNS).toBeInstanceOf(Set);
-		});
+test('IGNORE_PATTERNS should be a Set', t => {
+	t.true(IGNORE_PATTERNS instanceof Set);
+});
 
-		test.concurrent('should contain common directories to ignore', async () => {
-			expect(IGNORE_PATTERNS.has('node_modules')).toBe(true);
-			expect(IGNORE_PATTERNS.has('.git')).toBe(true);
-			expect(IGNORE_PATTERNS.has('dist')).toBe(true);
-			expect(IGNORE_PATTERNS.has('build')).toBe(true);
-		});
+test('IGNORE_PATTERNS should contain common directories to ignore', t => {
+	t.true(IGNORE_PATTERNS.has('node_modules'));
+	t.true(IGNORE_PATTERNS.has('.git'));
+	t.true(IGNORE_PATTERNS.has('dist'));
+	t.true(IGNORE_PATTERNS.has('build'));
+});
 
-		test.concurrent('should contain Python-specific patterns', async () => {
-			expect(IGNORE_PATTERNS.has('__pycache__')).toBe(true);
-			expect(IGNORE_PATTERNS.has('venv')).toBe(true);
-			expect(IGNORE_PATTERNS.has('.venv')).toBe(true);
-			expect(IGNORE_PATTERNS.has('*.pyc')).toBe(true);
-		});
+test('IGNORE_PATTERNS should contain Python-specific patterns', t => {
+	t.true(IGNORE_PATTERNS.has('__pycache__'));
+	t.true(IGNORE_PATTERNS.has('venv'));
+	t.true(IGNORE_PATTERNS.has('.venv'));
+	t.true(IGNORE_PATTERNS.has('*.pyc'));
+});
 
-		test.concurrent('should contain IDE-specific patterns', async () => {
-			expect(IGNORE_PATTERNS.has('.idea')).toBe(true);
-			expect(IGNORE_PATTERNS.has('.vscode')).toBe(true);
-		});
+test('IGNORE_PATTERNS should contain IDE-specific patterns', t => {
+	t.true(IGNORE_PATTERNS.has('.idea'));
+	t.true(IGNORE_PATTERNS.has('.vscode'));
+});
 
-		test.concurrent('should contain OS and temporary file patterns', async () => {
-			expect(IGNORE_PATTERNS.has('.DS_Store')).toBe(true);
-			expect(IGNORE_PATTERNS.has('*.log')).toBe(true);
-			expect(IGNORE_PATTERNS.has('*.tmp')).toBe(true);
-		});
+test('IGNORE_PATTERNS should contain OS and temporary file patterns', t => {
+	t.true(IGNORE_PATTERNS.has('.DS_Store'));
+	t.true(IGNORE_PATTERNS.has('*.log'));
+	t.true(IGNORE_PATTERNS.has('*.tmp'));
+});
 
-		test.concurrent('should have the expected number of patterns', async () => {
-			expect(IGNORE_PATTERNS.size).toBe(13);
-		});
-	});
+test('IGNORE_PATTERNS should have the expected number of patterns', t => {
+	t.is(IGNORE_PATTERNS.size, 13);
 });

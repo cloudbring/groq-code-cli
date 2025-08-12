@@ -1,107 +1,106 @@
-import { describe, it, expect, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import { clearCommand } from '@src/commands/definitions/clear';
 import { CommandContext } from '@src/commands/base';
 
-describe('clearCommand', () => {
-  it('should have correct command properties', () => {
-    expect(clearCommand.command).toBe('clear');
-    expect(clearCommand.description).toBe('Clear chat history and context');
-    expect(typeof clearCommand.handler).toBe('function');
-  });
+test('clearCommand - should have correct command properties', (t) => {
+  t.is(clearCommand.command, 'clear');
+  t.is(clearCommand.description, 'Clear chat history and context');
+  t.is(typeof clearCommand.handler, 'function');
+});
 
-  it('should call clearHistory and add confirmation message', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('clearCommand - should call clearHistory and add confirmation message', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    clearCommand.handler(mockContext);
+  clearCommand.handler(mockContext);
 
-    expect(mockContext.clearHistory).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Chat history and context cleared.',
-    });
-  });
+  t.is(mockContext.clearHistory.callCount, 1);
+  t.is(mockContext.addMessage.callCount, 1);
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Chat history and context cleared.',
+  }));
+});
 
-  it('should call clearHistory before adding message', () => {
-    const callOrder: string[] = [];
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(() => callOrder.push('addMessage')),
-      clearHistory: vi.fn(() => callOrder.push('clearHistory')),
-      setShowLogin: vi.fn(),
-    };
+test('clearCommand - should call clearHistory before adding message', (t) => {
+  const callOrder: string[] = [];
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub().callsFake(() => callOrder.push('addMessage')),
+    clearHistory: sinon.stub().callsFake(() => callOrder.push('clearHistory')),
+    setShowLogin: sinon.stub(),
+  };
 
-    clearCommand.handler(mockContext);
+  clearCommand.handler(mockContext);
 
-    expect(callOrder).toEqual(['clearHistory', 'addMessage']);
-  });
+  t.deepEqual(callOrder, ['clearHistory', 'addMessage']);
+});
 
-  it('should not call other context methods', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-    };
+test('clearCommand - should not call other context methods', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+  };
 
-    clearCommand.handler(mockContext);
+  clearCommand.handler(mockContext);
 
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-    expect(mockContext.setShowModelSelector).not.toHaveBeenCalled();
-    expect(mockContext.toggleReasoning).not.toHaveBeenCalled();
-  });
+  t.false(mockContext.setShowLogin.called);
+  t.false(mockContext.setShowModelSelector.called);
+  t.false(mockContext.toggleReasoning.called);
+});
 
-  it('should handle context destructuring correctly', () => {
-    const mockAddMessage = vi.fn();
-    const mockClearHistory = vi.fn();
-    
-    const mockContext: CommandContext = {
-      addMessage: mockAddMessage,
-      clearHistory: mockClearHistory,
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: false,
-    };
+test('clearCommand - should handle context destructuring correctly', (t) => {
+  const mockAddMessage = sinon.stub();
+  const mockClearHistory = sinon.stub();
+  
+  const mockContext: CommandContext = {
+    addMessage: mockAddMessage,
+    clearHistory: mockClearHistory,
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: false,
+  };
 
-    clearCommand.handler(mockContext);
+  clearCommand.handler(mockContext);
 
-    expect(mockClearHistory).toHaveBeenCalledTimes(1);
-    expect(mockAddMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Chat history and context cleared.',
-    });
-  });
+  t.is(mockClearHistory.callCount, 1);
+  t.true(mockAddMessage.calledWith({
+    role: 'system',
+    content: 'Chat history and context cleared.',
+  }));
+});
 
-  it('should work with minimal context', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('clearCommand - should work with minimal context', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    expect(() => clearCommand.handler(mockContext)).not.toThrow();
-    expect(mockContext.clearHistory).toHaveBeenCalled();
-    expect(mockContext.addMessage).toHaveBeenCalled();
-  });
+  t.notThrows(() => clearCommand.handler(mockContext));
+  t.true(mockContext.clearHistory.called);
+  t.true(mockContext.addMessage.called);
+});
 
-  it('should add system message with correct content', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('clearCommand - should add system message with correct content', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    clearCommand.handler(mockContext);
+  clearCommand.handler(mockContext);
 
-    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
-    expect(call).toEqual({
-      role: 'system',
-      content: 'Chat history and context cleared.',
-    });
+  const call = mockContext.addMessage.getCall(0).args[0];
+  t.deepEqual(call, {
+    role: 'system',
+    content: 'Chat history and context cleared.',
   });
 });

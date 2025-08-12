@@ -1,134 +1,143 @@
-import { describe, it, expect, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import { helpCommand } from '@src/commands/definitions/help';
 import { CommandContext } from '@src/commands/base';
+import * as commandsIndex from '@src/commands/index';
 
 // Mock the getAvailableCommands to avoid circular dependency
-vi.mock('@src/commands/index', () => ({
-  getAvailableCommands: () => [
+const getAvailableCommandsStub = sinon.stub(commandsIndex, 'getAvailableCommands').returns([
+  { command: 'help', description: 'Show help and available commands' },
+  { command: 'login', description: 'Login with Groq API key' },
+  { command: 'model', description: 'Select AI model' },
+  { command: 'clear', description: 'Clear chat history' },
+  { command: 'reasoning', description: 'Toggle reasoning mode' },
+]);
+
+test.afterEach(() => {
+  sinon.restore();
+  getAvailableCommandsStub.returns([
     { command: 'help', description: 'Show help and available commands' },
     { command: 'login', description: 'Login with Groq API key' },
     { command: 'model', description: 'Select AI model' },
     { command: 'clear', description: 'Clear chat history' },
     { command: 'reasoning', description: 'Toggle reasoning mode' },
-  ]
-}));
+  ]);
+});
 
-describe('helpCommand', () => {
-  it('should have correct command properties', () => {
-    expect(helpCommand.command).toBe('help');
-    expect(helpCommand.description).toBe('Show help and available commands');
-    expect(typeof helpCommand.handler).toBe('function');
-  });
+test('helpCommand - should have correct command properties', (t) => {
+  t.is(helpCommand.command, 'help');
+  t.is(helpCommand.description, 'Show help and available commands');
+  t.is(typeof helpCommand.handler, 'function');
+});
 
-  it('should add system message with help content', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('helpCommand - should add system message with help content', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    helpCommand.handler(mockContext);
+  helpCommand.handler(mockContext);
 
-    expect(mockContext.addMessage).toHaveBeenCalledTimes(1);
-    
-    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
-    expect(call.role).toBe('system');
-    expect(call.content).toContain('Available Commands:');
-    expect(call.content).toContain('/help - Show help and available commands');
-    expect(call.content).toContain('Navigation:');
-    expect(call.content).toContain('Keyboard Shortcuts:');
-    expect(call.content).toContain('Groq');
-  });
+  t.is(mockContext.addMessage.callCount, 1);
+  
+  const call = mockContext.addMessage.getCall(0).args[0];
+  t.is(call.role, 'system');
+  t.true(call.content.includes('Available Commands:'));
+  t.true(call.content.includes('/help - Show help and available commands'));
+  t.true(call.content.includes('Navigation:'));
+  t.true(call.content.includes('Keyboard Shortcuts:'));
+  t.true(call.content.includes('Groq'));
+});
 
-  it('should include all available commands in help message', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('helpCommand - should include all available commands in help message', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    helpCommand.handler(mockContext);
+  helpCommand.handler(mockContext);
 
-    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
-    const content = call.content;
+  const call = mockContext.addMessage.getCall(0).args[0];
+  const content = call.content;
 
-    // Should include various commands
-    expect(content).toContain('/help');
-    expect(content).toContain('/login');
-    expect(content).toContain('/model');
-    expect(content).toContain('/clear');
-    expect(content).toContain('/reasoning');
-  });
+  // Should include various commands
+  t.true(content.includes('/help'));
+  t.true(content.includes('/login'));
+  t.true(content.includes('/model'));
+  t.true(content.includes('/clear'));
+  t.true(content.includes('/reasoning'));
+});
 
-  it('should include navigation instructions', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('helpCommand - should include navigation instructions', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    helpCommand.handler(mockContext);
+  helpCommand.handler(mockContext);
 
-    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
-    const content = call.content;
+  const call = mockContext.addMessage.getCall(0).args[0];
+  const content = call.content;
 
-    expect(content).toContain('arrow keys');
-    expect(content).toContain('Enter to execute');
-    expect(content).toContain('Type \'/\'');
-  });
+  t.true(content.includes('arrow keys'));
+  t.true(content.includes('Enter to execute'));
+  t.true(content.includes('Type \'/\''));
+});
 
-  it('should include keyboard shortcuts', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('helpCommand - should include keyboard shortcuts', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    helpCommand.handler(mockContext);
+  helpCommand.handler(mockContext);
 
-    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
-    const content = call.content;
+  const call = mockContext.addMessage.getCall(0).args[0];
+  const content = call.content;
 
-    expect(content).toContain('Esc');
-    expect(content).toContain('Shift+Tab');
-    expect(content).toContain('Ctrl+C');
-    expect(content).toContain('Clear input box');
-    expect(content).toContain('Toggle auto-approval');
-    expect(content).toContain('Exit the application');
-  });
+  t.true(content.includes('Esc'));
+  t.true(content.includes('Shift+Tab'));
+  t.true(content.includes('Ctrl+C'));
+  t.true(content.includes('Clear input box'));
+  t.true(content.includes('Toggle auto-approval'));
+  t.true(content.includes('Exit the application'));
+});
 
-  it('should include application description', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('helpCommand - should include application description', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    helpCommand.handler(mockContext);
+  helpCommand.handler(mockContext);
 
-    const call = vi.mocked(mockContext.addMessage).mock.calls[0][0];
-    const content = call.content;
+  const call = mockContext.addMessage.getCall(0).args[0];
+  const content = call.content;
 
-    expect(content).toContain('lightweight');
-    expect(content).toContain('open-source');
-    expect(content).toContain('coding CLI');
-    expect(content).toContain('powered by Groq');
-  });
+  t.true(content.includes('lightweight'));
+  t.true(content.includes('open-source'));
+  t.true(content.includes('coding CLI'));
+  t.true(content.includes('powered by Groq'));
+});
 
-  it('should not call other context methods', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-    };
+test('helpCommand - should not call other context methods', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+  };
 
-    helpCommand.handler(mockContext);
+  helpCommand.handler(mockContext);
 
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-    expect(mockContext.setShowModelSelector).not.toHaveBeenCalled();
-    expect(mockContext.toggleReasoning).not.toHaveBeenCalled();
-  });
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowLogin.called);
+  t.false(mockContext.setShowModelSelector.called);
+  t.false(mockContext.toggleReasoning.called);
 });

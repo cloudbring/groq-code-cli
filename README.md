@@ -113,7 +113,7 @@ export GROQ_API_KEY=your_api_key_here
 
 ### Testing
 
-The project includes a comprehensive test suite with 640+ tests organized into unit, integration, and component tests.
+The project uses Ava test runner with a structured test suite organized into unit, integration, and component tests.
 
 ```bash
 # Run all tests
@@ -130,11 +130,11 @@ npm run test:coverage
 # Watch mode for development
 npm run test:watch
 
-# Interactive UI
-npm run test:ui
+# Verbose output for debugging
+npm run test:verbose
 ```
 
-**Coverage**: 86% statements, 89% branches, 87% functions, 86% lines
+**Note**: Test suite has been migrated from Vitest to Ava as per project standards. Some tests are being updated to work with the new testing framework.
 
 For detailed testing information, see the [Testing Guide](./docs/testing-guide.md).
 

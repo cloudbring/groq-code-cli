@@ -2,9 +2,7 @@
 
 ## Overview
 
-The Groq Code CLI test suite consists of **640 tests** (629 passing, 11 skipped) organized using Vitest workspace configuration with separate projects for unit, integration, and component tests. This guide provides a comprehensive overview of the testing architecture, patterns, and maintenance procedures.
-
-**Current Coverage**: 86% statements, 89% branches, 87% functions, 86% lines
+The Groq Code CLI test suite consists of **54 tests** (passing, partial conversion) organized using Ava test runner with structured directories for unit, integration, and component tests. This guide provides a comprehensive overview of the testing architecture, patterns, and maintenance procedures after the migration from Vitest to Ava.
 
 ## Test Suite Architecture
 
@@ -26,35 +24,24 @@ test/
         └── hooks/           # React hooks tests
 ```
 
-### Vitest Workspace Configuration
+### Ava Configuration
 
-The test suite uses a Vitest workspace with three distinct projects:
+The test suite uses Ava with TypeScript support:
 
 ```
-vitest.workspace.ts     # Main workspace configuration
-├── vitest.config.unit.ts        # Unit test configuration
-├── vitest.config.integration.ts # Integration test configuration
-└── vitest.config.component.ts   # Component test configuration
+ava.config.js          # Main Ava configuration
+├── TypeScript compilation with tsx loader
+├── Path mapping for @src alias
+└── Support for .ts and .tsx files
 ```
 
-#### Project-Specific Configurations
+#### Configuration Details
 
-**Unit Tests** (`vitest.config.unit.ts`)
-- Environment: `node`
-- Coverage thresholds: 80% (lines, functions, branches, statements)
-- Focus: Individual functions and modules in isolation
-
-**Integration Tests** (`vitest.config.integration.ts`)
-- Environment: `node`
-- Test timeout: 20 seconds
-- Coverage thresholds: 70% (more lenient for integration tests)
-- Single-threaded execution to avoid conflicts
-
-**Component Tests** (`vitest.config.component.ts`)
-- Environment: `happy-dom`
-- React plugin enabled
-- Setup file for React Testing Library
-- Coverage thresholds: 75% for UI components
+**Main Configuration** (`ava.config.js`)
+- TypeScript compilation: `tsc`
+- Path rewriting: `@src/` → `src/`
+- Node arguments: `--import=tsx`
+- File patterns: `test/**/*.test.ts`, `test/**/*.test.tsx`
 
 ## Import Path Management
 
@@ -90,33 +77,33 @@ vi.mock('@src/utils/file-ops', () => ({
 ### NPM Scripts
 
 ```bash
-# Run all tests with workspace configuration
+# Run all tests
 npm test
 
-# Run specific test projects
+# Run specific test types
 npm run test:unit          # Unit tests only
 npm run test:integration   # Integration tests only
 npm run test:component     # Component tests only
 
-# Coverage and development
-npm run test:coverage      # Run all tests with coverage report
-npm run test:watch        # Watch mode for all tests
-npm run test:ui           # Interactive UI for test exploration
+# Development and debugging
+npm run test:coverage      # Run all tests with coverage report using c8
+npm run test:watch         # Watch mode for development
+npm run test:verbose       # Verbose output for debugging
 
 # Run specific test file
-npm test -- test/unit/tools/tools.test.ts
+npx ava test/unit/utils/constants.test.ts
 
 # Run tests matching pattern
-npm test -- --grep "should handle"
+npx ava --match="*should handle*"
 ```
 
 ### Test Execution Flow
 
-1. **Workspace Discovery**: Vitest loads `vitest.workspace.ts`
-2. **Project Configuration**: Each project loads its specific config
-3. **Test Collection**: Tests are collected based on include patterns
-4. **Parallel Execution**: Unit and component tests run in parallel
-5. **Coverage Aggregation**: Coverage is collected across all projects
+1. **Configuration Loading**: Ava loads `ava.config.js`
+2. **TypeScript Processing**: tsx loader handles TypeScript compilation
+3. **Path Resolution**: @src alias is resolved to src/ directory
+4. **Test Discovery**: Tests are collected from specified patterns
+5. **Sequential Execution**: Ava runs tests by default in sequential mode
 
 ## Test Categories by Module
 
@@ -186,81 +173,89 @@ Integration tests for the agent system:
 
 ### 1. Test Organization
 
-Tests follow a consistent structure using `describe` blocks:
+Tests use Ava's flat structure with descriptive test names:
 
 ```typescript
-describe('ComponentName', () => {
-  // Setup and mocks
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+import test from 'ava';
+import sinon from 'sinon';
 
-  describe('rendering', () => {
-    it('should render with default props', () => {});
-    it('should handle edge cases', () => {});
-  });
-  
-  describe('interaction', () => {
-    it('should handle user input', () => {});
-    it('should validate input', () => {});
-  });
-  
-  describe('error handling', () => {
-    it('should display error messages', () => {});
-    it('should recover gracefully', () => {});
-  });
+test.beforeEach(t => {
+  // Setup stubs/mocks
+  t.context.stubs = {};
+});
+
+test.afterEach.always(t => {
+  sinon.restore();
+});
+
+test('ComponentName - should render with default props', t => {
+  // Test implementation
+  t.is(result, expected);
+});
+
+test('ComponentName - should handle edge cases', t => {
+  // Test implementation
+  t.true(condition);
 });
 ```
 
 ### 2. Mocking Strategy
 
-#### Common Mocks
+#### Common Patterns
 
-**File System Operations**
+**Sinon Stubs**
 ```typescript
-vi.mock('@src/utils/file-ops', () => ({
-  writeFile: vi.fn(),
-  createDirectory: vi.fn(),
-  deleteFile: vi.fn()
-}));
-```
+import sinon from 'sinon';
 
-**React Components (Ink)**
-```typescript
-vi.mock('ink', () => ({
-  Box: ({ children }: any) => <div data-testid="box">{children}</div>,
-  Text: ({ children }: any) => <span data-testid="text">{children}</span>,
-  useInput: vi.fn()
-}));
-```
+// Stubbing functions
+const writeStub = sinon.stub();
+const readStub = sinon.stub().returns('mock data');
 
-**External Libraries**
-```typescript
-vi.mock('groq-sdk', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: vi.fn()
-      }
-    }
-  }))
-}));
-```
-
-### 3. Concurrent Testing
-
-Many tests use `test.concurrent` for parallel execution:
-
-```typescript
-describe('Button Component', () => {
-  test.concurrent('should render button with text', async () => {
-    // Test implementation
-  });
-
-  test.concurrent('should handle click events', async () => {
-    // Test implementation
-  });
+// Stubbing modules (requires setup)
+test.beforeEach(t => {
+  t.context.fsStubs = {
+    writeFile: sinon.stub(),
+    readFile: sinon.stub()
+  };
 });
+```
+
+**React Components (with testing-library)**
+```typescript
+import { render } from '@testing-library/react';
+
+test('Component should render correctly', t => {
+  const { getByText } = render(<Component />);
+  t.truthy(getByText('Expected text'));
+});
+```
+
+### 3. Ava Assertions
+
+Common assertion patterns:
+
+```typescript
+// Equality
+t.is(actual, expected);
+t.deepEqual(actualObject, expectedObject);
+
+// Truthiness
+t.true(condition);
+t.false(condition);
+t.truthy(value);
+t.falsy(value);
+
+// Exceptions
+const error = t.throws(() => throwingFunction());
+t.is(error.message, 'Expected error message');
+
+// Async
+await t.notThrowsAsync(async () => await asyncFunction());
+
+// Sinon assertions
+t.true(stub.called);
+t.true(stub.calledWith('expected argument'));
+t.is(stub.callCount, 2);
 ```
 
 ## Coverage Analysis

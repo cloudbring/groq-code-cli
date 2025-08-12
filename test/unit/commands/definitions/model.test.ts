@@ -1,117 +1,116 @@
-import { describe, it, expect, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import { modelCommand } from '@src/commands/definitions/model';
 import { CommandContext } from '@src/commands/base';
 
-describe('modelCommand', () => {
-  it('should have correct command properties', () => {
-    expect(modelCommand.command).toBe('model');
-    expect(modelCommand.description).toBe('Select your Groq model');
-    expect(typeof modelCommand.handler).toBe('function');
-  });
+test('modelCommand - should have correct command properties', (t) => {
+  t.is(modelCommand.command, 'model');
+  t.is(modelCommand.description, 'Select your Groq model');
+  t.is(typeof modelCommand.handler, 'function');
+});
 
-  it('should call setShowModelSelector with true when available', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-    };
+test('modelCommand - should call setShowModelSelector with true when available', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+  };
 
-    modelCommand.handler(mockContext);
+  modelCommand.handler(mockContext);
 
-    expect(mockContext.setShowModelSelector).toHaveBeenCalledTimes(1);
-    expect(mockContext.setShowModelSelector).toHaveBeenCalledWith(true);
-  });
+  t.is(mockContext.setShowModelSelector.callCount, 1);
+  t.true(mockContext.setShowModelSelector.calledWith(true));
+});
 
-  it('should not crash when setShowModelSelector is undefined', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      // setShowModelSelector is undefined
-    };
+test('modelCommand - should not crash when setShowModelSelector is undefined', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    // setShowModelSelector is undefined
+  };
 
-    expect(() => modelCommand.handler(mockContext)).not.toThrow();
-  });
+  t.notThrows(() => modelCommand.handler(mockContext));
+});
 
-  it('should not call setShowModelSelector when it is undefined', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      // setShowModelSelector is undefined
-    };
+test('modelCommand - should not call setShowModelSelector when it is undefined', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    // setShowModelSelector is undefined
+  };
 
-    modelCommand.handler(mockContext);
+  modelCommand.handler(mockContext);
 
-    // Should not throw and should not call other methods unnecessarily
-    expect(mockContext.addMessage).not.toHaveBeenCalled();
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-  });
+  // Should not throw and should not call other methods unnecessarily
+  t.false(mockContext.addMessage.called);
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowLogin.called);
+});
 
-  it('should not call other context methods when setShowModelSelector is available', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-    };
+test('modelCommand - should not call other context methods when setShowModelSelector is available', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+  };
 
-    modelCommand.handler(mockContext);
+  modelCommand.handler(mockContext);
 
-    expect(mockContext.addMessage).not.toHaveBeenCalled();
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-    expect(mockContext.toggleReasoning).not.toHaveBeenCalled();
-  });
+  t.false(mockContext.addMessage.called);
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowLogin.called);
+  t.false(mockContext.toggleReasoning.called);
+});
 
-  it('should handle context destructuring correctly', () => {
-    const mockSetShowModelSelector = vi.fn();
-    
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: mockSetShowModelSelector,
-      toggleReasoning: vi.fn(),
-      showReasoning: false,
-    };
+test('modelCommand - should handle context destructuring correctly', (t) => {
+  const mockSetShowModelSelector = sinon.stub();
+  
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: mockSetShowModelSelector,
+    toggleReasoning: sinon.stub(),
+    showReasoning: false,
+  };
 
-    modelCommand.handler(mockContext);
+  modelCommand.handler(mockContext);
 
-    expect(mockSetShowModelSelector).toHaveBeenCalledWith(true);
-  });
+  t.true(mockSetShowModelSelector.calledWith(true));
+});
 
-  it('should check for setShowModelSelector existence before calling', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: undefined, // Explicitly undefined
-    };
+test('modelCommand - should check for setShowModelSelector existence before calling', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: undefined, // Explicitly undefined
+  };
 
-    expect(() => modelCommand.handler(mockContext)).not.toThrow();
-  });
+  t.notThrows(() => modelCommand.handler(mockContext));
+});
 
-  it('should work correctly with all optional properties present', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: true,
-    };
+test('modelCommand - should work correctly with all optional properties present', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: true,
+  };
 
-    modelCommand.handler(mockContext);
+  modelCommand.handler(mockContext);
 
-    expect(mockContext.setShowModelSelector).toHaveBeenCalledWith(true);
-    // Other methods should not be called
-    expect(mockContext.addMessage).not.toHaveBeenCalled();
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-    expect(mockContext.toggleReasoning).not.toHaveBeenCalled();
-  });
+  t.true(mockContext.setShowModelSelector.calledWith(true));
+  // Other methods should not be called
+  t.false(mockContext.addMessage.called);
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowLogin.called);
+  t.false(mockContext.toggleReasoning.called);
 });

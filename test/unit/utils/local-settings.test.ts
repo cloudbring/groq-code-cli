@@ -1,295 +1,312 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ConfigManager } from '@src/utils/local-settings';
 
-vi.mock('fs');
-vi.mock('os');
+const mockHomeDir = '/home/user';
+const expectedConfigPath = path.join(mockHomeDir, '.groq', 'local-settings.json');
 
-describe('ConfigManager', () => {
-	let configManager: ConfigManager;
-	const mockHomeDir = '/home/user';
-	const expectedConfigPath = path.join(mockHomeDir, '.groq', 'local-settings.json');
+// Create stubs for all fs methods we need
+const fsStubs = {
+	existsSync: sinon.stub(),
+	readFileSync: sinon.stub(),
+	writeFileSync: sinon.stub(),
+	mkdirSync: sinon.stub(),
+	unlinkSync: sinon.stub(),
+};
 
-	beforeEach(() => {
-		vi.clearAllMocks();
-		vi.mocked(os.homedir).mockReturnValue(mockHomeDir);
-		configManager = new ConfigManager();
-	});
+const osStubs = {
+	homedir: sinon.stub(),
+};
 
-	describe('constructor', () => {
-		it('should initialize with correct config path', () => {
-			expect(vi.mocked(os.homedir)).toHaveBeenCalled();
-		});
-	});
+// Replace fs and os methods
+Object.defineProperty(fs, 'existsSync', { value: fsStubs.existsSync, writable: false });
+Object.defineProperty(fs, 'readFileSync', { value: fsStubs.readFileSync, writable: false });
+Object.defineProperty(fs, 'writeFileSync', { value: fsStubs.writeFileSync, writable: false });
+Object.defineProperty(fs, 'mkdirSync', { value: fsStubs.mkdirSync, writable: false });
+Object.defineProperty(fs, 'unlinkSync', { value: fsStubs.unlinkSync, writable: false });
 
-	describe('getApiKey', () => {
-		it('should return null when config file does not exist', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(false);
+Object.defineProperty(os, 'homedir', { value: osStubs.homedir, writable: false });
 
-			const result = configManager.getApiKey();
-			
-			expect(result).toBeNull();
-			expect(fs.existsSync).toHaveBeenCalledWith(expectedConfigPath);
-		});
+test.beforeEach(() => {
+	sinon.restore();
+	// Reset all stubs
+	Object.values(fsStubs).forEach(stub => stub.reset());
+	Object.values(osStubs).forEach(stub => stub.reset());
+	osStubs.homedir.returns(mockHomeDir);
+});
 
-		it('should return API key from config file', () => {
-			const mockConfig = { groqApiKey: 'test-api-key' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig));
+test('ConfigManager constructor - should initialize with correct config path', (t) => {
+	const configManager = new ConfigManager();
+	t.true(osStubs.homedir.called);
+});
 
-			const result = configManager.getApiKey();
-			
-			expect(result).toBe('test-api-key');
-			expect(fs.readFileSync).toHaveBeenCalledWith(expectedConfigPath, 'utf8');
-		});
+test('getApiKey - should return null when config file does not exist', (t) => {
+	fsStubs.existsSync.returns(false);
+	const configManager = new ConfigManager();
 
-		it('should return null when groqApiKey is not in config', () => {
-			const mockConfig = { defaultModel: 'some-model' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig));
+	const result = configManager.getApiKey();
+	
+	t.is(result, null);
+	t.true(fsStubs.existsSync.calledWith(expectedConfigPath));
+});
 
-			const result = configManager.getApiKey();
-			
-			expect(result).toBeNull();
-		});
+test('getApiKey - should return API key from config file', (t) => {
+	const mockConfig = { groqApiKey: 'test-api-key' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(mockConfig));
+	const configManager = new ConfigManager();
 
-		it('should return null and warn on JSON parse error', () => {
-			const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue('invalid json');
+	const result = configManager.getApiKey();
+	
+	t.is(result, 'test-api-key');
+	t.true(fsStubs.readFileSync.calledWith(expectedConfigPath, 'utf8'));
+});
 
-			const result = configManager.getApiKey();
-			
-			expect(result).toBeNull();
-			expect(consoleWarnSpy).toHaveBeenCalledWith(
-				'Failed to read config file:',
-				expect.any(Error)
-			);
-			
-			consoleWarnSpy.mockRestore();
-		});
-	});
+test('getApiKey - should return null when groqApiKey is not in config', (t) => {
+	const mockConfig = { defaultModel: 'some-model' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(mockConfig));
+	const configManager = new ConfigManager();
 
-	describe('setApiKey', () => {
-		it('should create config directory if it does not exist', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(false);
-			vi.mocked(fs.mkdirSync).mockImplementation(() => undefined as any);
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	const result = configManager.getApiKey();
+	
+	t.is(result, null);
+});
 
-			configManager.setApiKey('new-api-key');
-			
-			expect(fs.mkdirSync).toHaveBeenCalledWith(
-				path.dirname(expectedConfigPath),
-				{ recursive: true }
-			);
-		});
+test('getApiKey - should return null and warn on JSON parse error', (t) => {
+	const consoleWarnSpy = sinon.stub(console, 'warn');
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns('invalid json');
+	const configManager = new ConfigManager();
 
-		it('should create new config file with API key', () => {
-			vi.mocked(fs.existsSync).mockReturnValueOnce(true).mockReturnValueOnce(false);
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	const result = configManager.getApiKey();
+	
+	t.is(result, null);
+	t.true(consoleWarnSpy.calledWith('Failed to read config file:', sinon.match.instanceOf(Error)));
+	
+	consoleWarnSpy.restore();
+});
 
-			configManager.setApiKey('new-api-key');
-			
-			expect(fs.writeFileSync).toHaveBeenCalledWith(
-				expectedConfigPath,
-				JSON.stringify({ groqApiKey: 'new-api-key' }, null, 2),
-				{ mode: 0o600 }
-			);
-		});
+test('setApiKey - should create config directory if it does not exist', (t) => {
+	fsStubs.existsSync.returns(false);
+	fsStubs.mkdirSync.returns(undefined);
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-		it('should update existing config file with API key', () => {
-			const existingConfig = { defaultModel: 'existing-model' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(existingConfig));
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	configManager.setApiKey('new-api-key');
+	
+	t.true(fsStubs.mkdirSync.calledWith(
+		path.dirname(expectedConfigPath),
+		{ recursive: true }
+	));
+});
 
-			configManager.setApiKey('new-api-key');
-			
-			expect(fs.writeFileSync).toHaveBeenCalledWith(
-				expectedConfigPath,
-				JSON.stringify({ 
-					defaultModel: 'existing-model',
-					groqApiKey: 'new-api-key' 
-				}, null, 2),
-				{ mode: 0o600 }
-			);
-		});
+test('setApiKey - should create new config file with API key', (t) => {
+	fsStubs.existsSync.onFirstCall().returns(true).onSecondCall().returns(false);
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-		it('should throw error on write failure', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.writeFileSync).mockImplementation(() => {
-				throw new Error('Write failed');
-			});
+	configManager.setApiKey('new-api-key');
+	
+	t.true(fsStubs.writeFileSync.calledWith(
+		expectedConfigPath,
+		JSON.stringify({ groqApiKey: 'new-api-key' }, null, 2),
+		{ mode: 0o600 }
+	));
+});
 
-			expect(() => configManager.setApiKey('new-api-key')).toThrow(
-				'Failed to save API key: Error: Write failed'
-			);
-		});
-	});
+test('setApiKey - should update existing config file with API key', (t) => {
+	const existingConfig = { defaultModel: 'existing-model' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(existingConfig));
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-	describe('clearApiKey', () => {
-		it('should do nothing if config file does not exist', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(false);
+	configManager.setApiKey('new-api-key');
+	
+	t.true(fsStubs.writeFileSync.calledWith(
+		expectedConfigPath,
+		JSON.stringify({ 
+			defaultModel: 'existing-model',
+			groqApiKey: 'new-api-key' 
+		}, null, 2),
+		{ mode: 0o600 }
+	));
+});
 
-			configManager.clearApiKey();
-			
-			expect(fs.readFileSync).not.toHaveBeenCalled();
-			expect(fs.writeFileSync).not.toHaveBeenCalled();
-			expect(fs.unlinkSync).not.toHaveBeenCalled();
-		});
+test('setApiKey - should throw error on write failure', (t) => {
+	fsStubs.existsSync.returns(true);
+	fsStubs.writeFileSync.throws(new Error('Write failed'));
+	const configManager = new ConfigManager();
 
-		it('should remove API key from config', () => {
-			const config = { 
-				groqApiKey: 'api-key',
-				defaultModel: 'model' 
-			};
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(config));
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	const error = t.throws(() => configManager.setApiKey('new-api-key'));
+	t.truthy(error);
+	t.is(error!.message, 'Failed to save API key: Error: Write failed');
+});
 
-			configManager.clearApiKey();
-			
-			expect(fs.writeFileSync).toHaveBeenCalledWith(
-				expectedConfigPath,
-				JSON.stringify({ defaultModel: 'model' }, null, 2),
-				{ mode: 0o600 }
-			);
-		});
+test('clearApiKey - should do nothing if config file does not exist', (t) => {
+	fsStubs.existsSync.returns(false);
+	const configManager = new ConfigManager();
 
-		it('should delete config file if no other properties remain', () => {
-			const config = { groqApiKey: 'api-key' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(config));
-			vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
+	configManager.clearApiKey();
+	
+	t.false(fsStubs.readFileSync.called);
+	t.false(fsStubs.writeFileSync.called);
+	t.false(fsStubs.unlinkSync.called);
+});
 
-			configManager.clearApiKey();
-			
-			expect(fs.unlinkSync).toHaveBeenCalledWith(expectedConfigPath);
-			expect(fs.writeFileSync).not.toHaveBeenCalled();
-		});
+test('clearApiKey - should remove API key from config', (t) => {
+	const config = { 
+		groqApiKey: 'api-key',
+		defaultModel: 'model' 
+	};
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(config));
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-		it('should warn on error', () => {
-			const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockImplementation(() => {
-				throw new Error('Read failed');
-			});
+	configManager.clearApiKey();
+	
+	t.true(fsStubs.writeFileSync.calledWith(
+		expectedConfigPath,
+		JSON.stringify({ defaultModel: 'model' }, null, 2),
+		{ mode: 0o600 }
+	));
+});
 
-			configManager.clearApiKey();
-			
-			expect(consoleWarnSpy).toHaveBeenCalledWith(
-				'Failed to clear API key:',
-				expect.any(Error)
-			);
-			
-			consoleWarnSpy.mockRestore();
-		});
-	});
+test('clearApiKey - should delete config file if no other properties remain', (t) => {
+	const config = { groqApiKey: 'api-key' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(config));
+	fsStubs.unlinkSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-	describe('getDefaultModel', () => {
-		it('should return null when config file does not exist', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(false);
+	configManager.clearApiKey();
+	
+	t.true(fsStubs.unlinkSync.calledWith(expectedConfigPath));
+	t.false(fsStubs.writeFileSync.called);
+});
 
-			const result = configManager.getDefaultModel();
-			
-			expect(result).toBeNull();
-		});
+test('clearApiKey - should warn on error', (t) => {
+	const consoleWarnSpy = sinon.stub(console, 'warn');
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.throws(new Error('Read failed'));
+	const configManager = new ConfigManager();
 
-		it('should return default model from config', () => {
-			const config = { defaultModel: 'test-model' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(config));
+	configManager.clearApiKey();
+	
+	t.true(consoleWarnSpy.calledWith(
+		'Failed to clear API key:',
+		sinon.match.instanceOf(Error)
+	));
+	
+	consoleWarnSpy.restore();
+});
 
-			const result = configManager.getDefaultModel();
-			
-			expect(result).toBe('test-model');
-		});
+test('getDefaultModel - should return null when config file does not exist', (t) => {
+	fsStubs.existsSync.returns(false);
+	const configManager = new ConfigManager();
 
-		it('should return null when defaultModel is not in config', () => {
-			const config = { groqApiKey: 'api-key' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(config));
+	const result = configManager.getDefaultModel();
+	
+	t.is(result, null);
+});
 
-			const result = configManager.getDefaultModel();
-			
-			expect(result).toBeNull();
-		});
+test('getDefaultModel - should return default model from config', (t) => {
+	const config = { defaultModel: 'test-model' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(config));
+	const configManager = new ConfigManager();
 
-		it('should return null and warn on error', () => {
-			const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockImplementation(() => {
-				throw new Error('Read failed');
-			});
+	const result = configManager.getDefaultModel();
+	
+	t.is(result, 'test-model');
+});
 
-			const result = configManager.getDefaultModel();
-			
-			expect(result).toBeNull();
-			expect(consoleWarnSpy).toHaveBeenCalledWith(
-				'Failed to read default model:',
-				expect.any(Error)
-			);
-			
-			consoleWarnSpy.mockRestore();
-		});
-	});
+test('getDefaultModel - should return null when defaultModel is not in config', (t) => {
+	const config = { groqApiKey: 'api-key' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(config));
+	const configManager = new ConfigManager();
 
-	describe('setDefaultModel', () => {
-		it('should create config directory if it does not exist', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(false);
-			vi.mocked(fs.mkdirSync).mockImplementation(() => undefined as any);
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	const result = configManager.getDefaultModel();
+	
+	t.is(result, null);
+});
 
-			configManager.setDefaultModel('new-model');
-			
-			expect(fs.mkdirSync).toHaveBeenCalledWith(
-				path.dirname(expectedConfigPath),
-				{ recursive: true }
-			);
-		});
+test('getDefaultModel - should return null and warn on error', (t) => {
+	const consoleWarnSpy = sinon.stub(console, 'warn');
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.throws(new Error('Read failed'));
+	const configManager = new ConfigManager();
 
-		it('should create new config file with default model', () => {
-			vi.mocked(fs.existsSync).mockReturnValueOnce(true).mockReturnValueOnce(false);
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	const result = configManager.getDefaultModel();
+	
+	t.is(result, null);
+	t.true(consoleWarnSpy.calledWith(
+		'Failed to read default model:',
+		sinon.match.instanceOf(Error)
+	));
+	
+	consoleWarnSpy.restore();
+});
 
-			configManager.setDefaultModel('new-model');
-			
-			expect(fs.writeFileSync).toHaveBeenCalledWith(
-				expectedConfigPath,
-				JSON.stringify({ defaultModel: 'new-model' }, null, 2),
-				{ mode: 0o600 }
-			);
-		});
+test('setDefaultModel - should create config directory if it does not exist', (t) => {
+	fsStubs.existsSync.returns(false);
+	fsStubs.mkdirSync.returns(undefined);
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-		it('should update existing config with default model', () => {
-			const existingConfig = { groqApiKey: 'api-key' };
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(existingConfig));
-			vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
+	configManager.setDefaultModel('new-model');
+	
+	t.true(fsStubs.mkdirSync.calledWith(
+		path.dirname(expectedConfigPath),
+		{ recursive: true }
+	));
+});
 
-			configManager.setDefaultModel('new-model');
-			
-			expect(fs.writeFileSync).toHaveBeenCalledWith(
-				expectedConfigPath,
-				JSON.stringify({ 
-					groqApiKey: 'api-key',
-					defaultModel: 'new-model' 
-				}, null, 2),
-				{ mode: 0o600 }
-			);
-		});
+test('setDefaultModel - should create new config file with default model', (t) => {
+	fsStubs.existsSync.onFirstCall().returns(true).onSecondCall().returns(false);
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
 
-		it('should throw error on write failure', () => {
-			vi.mocked(fs.existsSync).mockReturnValue(true);
-			vi.mocked(fs.writeFileSync).mockImplementation(() => {
-				throw new Error('Write failed');
-			});
+	configManager.setDefaultModel('new-model');
+	
+	t.true(fsStubs.writeFileSync.calledWith(
+		expectedConfigPath,
+		JSON.stringify({ defaultModel: 'new-model' }, null, 2),
+		{ mode: 0o600 }
+	));
+});
 
-			expect(() => configManager.setDefaultModel('new-model')).toThrow(
-				'Failed to save default model: Error: Write failed'
-			);
-		});
-	});
+test('setDefaultModel - should update existing config with default model', (t) => {
+	const existingConfig = { groqApiKey: 'api-key' };
+	fsStubs.existsSync.returns(true);
+	fsStubs.readFileSync.returns(JSON.stringify(existingConfig));
+	fsStubs.writeFileSync.returns(undefined);
+	const configManager = new ConfigManager();
+
+	configManager.setDefaultModel('new-model');
+	
+	t.true(fsStubs.writeFileSync.calledWith(
+		expectedConfigPath,
+		JSON.stringify({ 
+			groqApiKey: 'api-key',
+			defaultModel: 'new-model' 
+		}, null, 2),
+		{ mode: 0o600 }
+	));
+});
+
+test('setDefaultModel - should throw error on write failure', (t) => {
+	fsStubs.existsSync.returns(true);
+	fsStubs.writeFileSync.throws(new Error('Write failed'));
+	const configManager = new ConfigManager();
+
+	const error = t.throws(() => configManager.setDefaultModel('new-model'));
+	t.truthy(error);
+	t.is(error!.message, 'Failed to save default model: Error: Write failed');
 });

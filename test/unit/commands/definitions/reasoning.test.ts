@@ -1,202 +1,201 @@
-import { describe, it, expect, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import { reasoningCommand } from '@src/commands/definitions/reasoning';
 import { CommandContext } from '@src/commands/base';
 
-describe('reasoningCommand', () => {
-  it('should have correct command properties', () => {
-    expect(reasoningCommand.command).toBe('reasoning');
-    expect(reasoningCommand.description).toBe('Toggle display of reasoning content in messages');
-    expect(typeof reasoningCommand.handler).toBe('function');
-  });
+test('reasoningCommand - should have correct command properties', (t) => {
+  t.is(reasoningCommand.command, 'reasoning');
+  t.is(reasoningCommand.description, 'Toggle display of reasoning content in messages');
+  t.is(typeof reasoningCommand.handler, 'function');
+});
 
-  it('should toggle reasoning and add enabled message when showReasoning is false', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: false,
-    };
+test('reasoningCommand - should toggle reasoning and add enabled message when showReasoning is false', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: false,
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.toggleReasoning).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning display is now enabled.',
-    });
-  });
+  t.is(mockContext.toggleReasoning.callCount, 1);
+  t.is(mockContext.addMessage.callCount, 1);
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning display is now enabled.',
+  }));
+});
 
-  it('should toggle reasoning and add disabled message when showReasoning is true', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: true,
-    };
+test('reasoningCommand - should toggle reasoning and add disabled message when showReasoning is true', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: true,
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.toggleReasoning).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning display is now disabled.',
-    });
-  });
+  t.is(mockContext.toggleReasoning.callCount, 1);
+  t.is(mockContext.addMessage.callCount, 1);
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning display is now disabled.',
+  }));
+});
 
-  it('should show not available message when toggleReasoning is undefined', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      // toggleReasoning is undefined
-      // showReasoning is undefined
-    };
+test('reasoningCommand - should show not available message when toggleReasoning is undefined', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    // toggleReasoning is undefined
+    // showReasoning is undefined
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.addMessage).toHaveBeenCalledTimes(1);
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning toggle functionality is not available.',
-    });
-  });
+  t.is(mockContext.addMessage.callCount, 1);
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning toggle functionality is not available.',
+  }));
+});
 
-  it('should show not available message when toggleReasoning is null', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: undefined,
-      showReasoning: undefined,
-    };
+test('reasoningCommand - should show not available message when toggleReasoning is null', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: undefined,
+    showReasoning: undefined,
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning toggle functionality is not available.',
-    });
-  });
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning toggle functionality is not available.',
+  }));
+});
 
-  it('should handle showReasoning being undefined when toggleReasoning exists', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: vi.fn(),
-      // showReasoning is undefined
-    };
+test('reasoningCommand - should handle showReasoning being undefined when toggleReasoning exists', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    // showReasoning is undefined
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.toggleReasoning).toHaveBeenCalled();
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning display is now enabled.', // !undefined = true
-    });
-  });
+  t.true(mockContext.toggleReasoning.called);
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning display is now enabled.', // !undefined = true
+  }));
+});
 
-  it('should not call other context methods when toggleReasoning is available', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: false,
-      setShowModelSelector: vi.fn(),
-    };
+test('reasoningCommand - should not call other context methods when toggleReasoning is available', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: false,
+    setShowModelSelector: sinon.stub(),
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-    expect(mockContext.setShowModelSelector).not.toHaveBeenCalled();
-  });
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowLogin.called);
+  t.false(mockContext.setShowModelSelector.called);
+});
 
-  it('should not call other context methods when toggleReasoning is unavailable', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      // toggleReasoning is undefined
-    };
+test('reasoningCommand - should not call other context methods when toggleReasoning is unavailable', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    // toggleReasoning is undefined
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockContext.clearHistory).not.toHaveBeenCalled();
-    expect(mockContext.setShowLogin).not.toHaveBeenCalled();
-    expect(mockContext.setShowModelSelector).not.toHaveBeenCalled();
-  });
+  t.false(mockContext.clearHistory.called);
+  t.false(mockContext.setShowLogin.called);
+  t.false(mockContext.setShowModelSelector.called);
+});
 
-  it('should handle context destructuring correctly', () => {
-    const mockAddMessage = vi.fn();
-    const mockToggleReasoning = vi.fn();
-    
-    const mockContext: CommandContext = {
-      addMessage: mockAddMessage,
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: mockToggleReasoning,
-      showReasoning: true,
-    };
+test('reasoningCommand - should handle context destructuring correctly', (t) => {
+  const mockAddMessage = sinon.stub();
+  const mockToggleReasoning = sinon.stub();
+  
+  const mockContext: CommandContext = {
+    addMessage: mockAddMessage,
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: mockToggleReasoning,
+    showReasoning: true,
+  };
 
-    reasoningCommand.handler(mockContext);
+  reasoningCommand.handler(mockContext);
 
-    expect(mockToggleReasoning).toHaveBeenCalledTimes(1);
-    expect(mockAddMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning display is now disabled.',
-    });
-  });
+  t.is(mockToggleReasoning.callCount, 1);
+  t.true(mockAddMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning display is now disabled.',
+  }));
+});
 
-  it('should work with minimal context when toggleReasoning is unavailable', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
+test('reasoningCommand - should work with minimal context when toggleReasoning is unavailable', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    expect(() => reasoningCommand.handler(mockContext)).not.toThrow();
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning toggle functionality is not available.',
-    });
-  });
+  t.notThrows(() => reasoningCommand.handler(mockContext));
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning toggle functionality is not available.',
+  }));
+});
 
-  it('should correctly invert showReasoning state in message', () => {
-    // Test false -> enabled
-    const mockContextFalse: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: false,
-    };
+test('reasoningCommand - should correctly invert showReasoning state in message', (t) => {
+  // Test false -> enabled
+  const mockContextFalse: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: false,
+  };
 
-    reasoningCommand.handler(mockContextFalse);
-    expect(mockContextFalse.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning display is now enabled.',
-    });
+  reasoningCommand.handler(mockContextFalse);
+  t.true(mockContextFalse.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning display is now enabled.',
+  }));
 
-    // Test true -> disabled
-    const mockContextTrue: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: true,
-    };
+  // Test true -> disabled
+  const mockContextTrue: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: true,
+  };
 
-    reasoningCommand.handler(mockContextTrue);
-    expect(mockContextTrue.addMessage).toHaveBeenCalledWith({
-      role: 'system',
-      content: 'Reasoning display is now disabled.',
-    });
-  });
+  reasoningCommand.handler(mockContextTrue);
+  t.true(mockContextTrue.addMessage.calledWith({
+    role: 'system',
+    content: 'Reasoning display is now disabled.',
+  }));
 });

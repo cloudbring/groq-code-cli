@@ -1,141 +1,136 @@
-import { describe, it, expect, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import { BaseCommand, CommandContext, CommandDefinition } from '@src/commands/base';
 
-describe('CommandContext', () => {
-  it('should define correct interface structure', () => {
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-      toggleReasoning: vi.fn(),
-      showReasoning: true,
-    };
+test('CommandContext - should define correct interface structure', (t) => {
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+    toggleReasoning: sinon.stub(),
+    showReasoning: true,
+  };
 
-    expect(mockContext.addMessage).toBeDefined();
-    expect(mockContext.clearHistory).toBeDefined();
-    expect(mockContext.setShowLogin).toBeDefined();
-    expect(mockContext.setShowModelSelector).toBeDefined();
-    expect(mockContext.toggleReasoning).toBeDefined();
-    expect(typeof mockContext.showReasoning).toBe('boolean');
-  });
-
-  it('should work with minimal required properties', () => {
-    const minimalContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
-
-    expect(minimalContext.addMessage).toBeDefined();
-    expect(minimalContext.clearHistory).toBeDefined();
-    expect(minimalContext.setShowLogin).toBeDefined();
-    expect(minimalContext.setShowModelSelector).toBeUndefined();
-    expect(minimalContext.toggleReasoning).toBeUndefined();
-    expect(minimalContext.showReasoning).toBeUndefined();
-  });
+  t.truthy(mockContext.addMessage);
+  t.truthy(mockContext.clearHistory);
+  t.truthy(mockContext.setShowLogin);
+  t.truthy(mockContext.setShowModelSelector);
+  t.truthy(mockContext.toggleReasoning);
+  t.is(typeof mockContext.showReasoning, 'boolean');
 });
 
-describe('CommandDefinition', () => {
-  it('should define correct interface structure', () => {
-    const mockHandler = vi.fn();
-    const mockDefinition: CommandDefinition = {
-      command: 'test',
-      description: 'Test command',
-      handler: mockHandler,
-    };
+test('CommandContext - should work with minimal required properties', (t) => {
+  const minimalContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    expect(mockDefinition.command).toBe('test');
-    expect(mockDefinition.description).toBe('Test command');
-    expect(mockDefinition.handler).toBe(mockHandler);
-  });
+  t.truthy(minimalContext.addMessage);
+  t.truthy(minimalContext.clearHistory);
+  t.truthy(minimalContext.setShowLogin);
+  t.is(minimalContext.setShowModelSelector, undefined);
+  t.is(minimalContext.toggleReasoning, undefined);
+  t.is(minimalContext.showReasoning, undefined);
 });
 
-describe('BaseCommand', () => {
-  class TestCommand extends BaseCommand {
-    command = 'test';
-    description = 'Test command for unit tests';
-    
-    handler(context: CommandContext): void {
-      context.addMessage({
-        role: 'system',
-        content: 'Test message',
-      });
-    }
-  }
+test('CommandDefinition - should define correct interface structure', (t) => {
+  const mockHandler = sinon.stub();
+  const mockDefinition: CommandDefinition = {
+    command: 'test',
+    description: 'Test command',
+    handler: mockHandler,
+  };
 
-  it('should create a command instance with required properties', () => {
-    const testCommand = new TestCommand();
-    
-    expect(testCommand.command).toBe('test');
-    expect(testCommand.description).toBe('Test command for unit tests');
-    expect(typeof testCommand.handler).toBe('function');
-  });
+  t.is(mockDefinition.command, 'test');
+  t.is(mockDefinition.description, 'Test command');
+  t.is(mockDefinition.handler, mockHandler);
+});
 
-  it('should execute handler correctly', () => {
-    const testCommand = new TestCommand();
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-    };
-
-    testCommand.handler(mockContext);
-
-    expect(mockContext.addMessage).toHaveBeenCalledWith({
+class TestCommand extends BaseCommand {
+  command = 'test';
+  description = 'Test command for unit tests';
+  
+  handler(context: CommandContext): void {
+    context.addMessage({
       role: 'system',
       content: 'Test message',
     });
-  });
-
-  it('should implement CommandDefinition interface', () => {
-    const testCommand = new TestCommand();
-    
-    // Should be assignable to CommandDefinition
-    const definition: CommandDefinition = testCommand;
-    
-    expect(definition.command).toBe('test');
-    expect(definition.description).toBe('Test command for unit tests');
-    expect(typeof definition.handler).toBe('function');
-  });
-
-  class AnotherTestCommand extends BaseCommand {
-    command = 'another';
-    description = 'Another test command';
-    
-    handler(context: CommandContext): void {
-      if (context.setShowModelSelector) {
-        context.setShowModelSelector(true);
-      }
-      context.clearHistory();
-    }
   }
+}
 
-  it('should handle optional context properties', () => {
-    const anotherCommand = new AnotherTestCommand();
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      setShowModelSelector: vi.fn(),
-    };
+test('BaseCommand - should create a command instance with required properties', (t) => {
+  const testCommand = new TestCommand();
+  
+  t.is(testCommand.command, 'test');
+  t.is(testCommand.description, 'Test command for unit tests');
+  t.is(typeof testCommand.handler, 'function');
+});
 
-    anotherCommand.handler(mockContext);
+test('BaseCommand - should execute handler correctly', (t) => {
+  const testCommand = new TestCommand();
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+  };
 
-    expect(mockContext.setShowModelSelector).toHaveBeenCalledWith(true);
-    expect(mockContext.clearHistory).toHaveBeenCalled();
-  });
+  testCommand.handler(mockContext);
 
-  it('should handle missing optional context properties gracefully', () => {
-    const anotherCommand = new AnotherTestCommand();
-    const mockContext: CommandContext = {
-      addMessage: vi.fn(),
-      clearHistory: vi.fn(),
-      setShowLogin: vi.fn(),
-      // setShowModelSelector is undefined
-    };
+  t.true(mockContext.addMessage.calledWith({
+    role: 'system',
+    content: 'Test message',
+  }));
+});
 
-    expect(() => anotherCommand.handler(mockContext)).not.toThrow();
-    expect(mockContext.clearHistory).toHaveBeenCalled();
-  });
+test('BaseCommand - should implement CommandDefinition interface', (t) => {
+  const testCommand = new TestCommand();
+  
+  // Should be assignable to CommandDefinition
+  const definition: CommandDefinition = testCommand;
+  
+  t.is(definition.command, 'test');
+  t.is(definition.description, 'Test command for unit tests');
+  t.is(typeof definition.handler, 'function');
+});
+
+class AnotherTestCommand extends BaseCommand {
+  command = 'another';
+  description = 'Another test command';
+  
+  handler(context: CommandContext): void {
+    if (context.setShowModelSelector) {
+      context.setShowModelSelector(true);
+    }
+    context.clearHistory();
+  }
+}
+
+test('BaseCommand - should handle optional context properties', (t) => {
+  const anotherCommand = new AnotherTestCommand();
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    setShowModelSelector: sinon.stub(),
+  };
+
+  anotherCommand.handler(mockContext);
+
+  t.true(mockContext.setShowModelSelector.calledWith(true));
+  t.true(mockContext.clearHistory.called);
+});
+
+test('BaseCommand - should handle missing optional context properties gracefully', (t) => {
+  const anotherCommand = new AnotherTestCommand();
+  const mockContext: CommandContext = {
+    addMessage: sinon.stub(),
+    clearHistory: sinon.stub(),
+    setShowLogin: sinon.stub(),
+    // setShowModelSelector is undefined
+  };
+
+  t.notThrows(() => anotherCommand.handler(mockContext));
+  t.true(mockContext.clearHistory.called);
 });

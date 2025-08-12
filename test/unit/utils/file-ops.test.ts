@@ -1,233 +1,229 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import test from 'ava';
+import sinon from 'sinon';
 import * as fs from 'fs';
 import * as path from 'path';
 import { writeFile, createDirectory, deleteFile, displayTree, shouldIgnore } from '@src/utils/file-ops';
 
-vi.mock('fs', () => ({
+// Mock fs module
+const mockFs = {
 	promises: {
-		mkdir: vi.fn(),
-		writeFile: vi.fn(),
-		stat: vi.fn(),
-		unlink: vi.fn(),
-		rmdir: vi.fn(),
-		access: vi.fn(),
-		readdir: vi.fn(),
+		mkdir: sinon.stub(),
+		writeFile: sinon.stub(),
+		stat: sinon.stub(),
+		unlink: sinon.stub(),
+		rmdir: sinon.stub(),
+		access: sinon.stub(),
+		readdir: sinon.stub(),
 	},
-}));
+};
 
-describe('file-ops', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
+// Replace fs module with mock
+Object.defineProperty(fs, 'promises', {
+	value: mockFs.promises,
+	writable: false,
+});
 
-	describe('writeFile', () => {
-		it('should write file successfully', async () => {
-			vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined);
-			vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined);
+test.beforeEach(() => {
+	sinon.restore();
+});
 
-			const result = await writeFile('/test/file.txt', 'content');
-			
-			expect(result).toBe(true);
-			expect(fs.promises.mkdir).toHaveBeenCalledWith(path.dirname('/test/file.txt'), { recursive: true });
-			expect(fs.promises.writeFile).toHaveBeenCalledWith(path.resolve('/test/file.txt'), 'content', 'utf-8');
-		});
+test('writeFile - should write file successfully', async (t) => {
+	mockFs.promises.mkdir.resolves(undefined);
+	mockFs.promises.writeFile.resolves(undefined);
 
-		it('should return false on error', async () => {
-			vi.mocked(fs.promises.mkdir).mockRejectedValue(new Error('Permission denied'));
+	const result = await writeFile('/test/file.txt', 'content');
+	
+	t.is(result, true);
+	t.true(mockFs.promises.mkdir.calledWith(path.dirname('/test/file.txt'), { recursive: true }));
+	t.true(mockFs.promises.writeFile.calledWith(path.resolve('/test/file.txt'), 'content', 'utf-8'));
+});
 
-			const result = await writeFile('/test/file.txt', 'content');
-			
-			expect(result).toBe(false);
-		});
+test('writeFile - should return false on error', async (t) => {
+	mockFs.promises.mkdir.rejects(new Error('Permission denied'));
 
-		it('should handle force and backup parameters', async () => {
-			vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined);
-			vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined);
+	const result = await writeFile('/test/file.txt', 'content');
+	
+	t.is(result, false);
+});
 
-			const result = await writeFile('/test/file.txt', 'content', true, true);
-			
-			expect(result).toBe(true);
-		});
-	});
+test('writeFile - should handle force and backup parameters', async (t) => {
+	mockFs.promises.mkdir.resolves(undefined);
+	mockFs.promises.writeFile.resolves(undefined);
 
-	describe('createDirectory', () => {
-		it('should create directory successfully', async () => {
-			vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined);
+	const result = await writeFile('/test/file.txt', 'content', true, true);
+	
+	t.is(result, true);
+});
 
-			const result = await createDirectory('/test/dir');
-			
-			expect(result).toBe(true);
-			expect(fs.promises.mkdir).toHaveBeenCalledWith('/test/dir', { recursive: true });
-		});
+test('createDirectory - should create directory successfully', async (t) => {
+	mockFs.promises.mkdir.resolves(undefined);
 
-		it('should return false on error', async () => {
-			vi.mocked(fs.promises.mkdir).mockRejectedValue(new Error('Permission denied'));
+	const result = await createDirectory('/test/dir');
+	
+	t.is(result, true);
+	t.true(mockFs.promises.mkdir.calledWith('/test/dir', { recursive: true }));
+});
 
-			const result = await createDirectory('/test/dir');
-			
-			expect(result).toBe(false);
-		});
-	});
+test('createDirectory - should return false on error', async (t) => {
+	mockFs.promises.mkdir.rejects(new Error('Permission denied'));
 
-	describe('deleteFile', () => {
-		it('should delete file when force is true', async () => {
-			vi.mocked(fs.promises.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
-			vi.mocked(fs.promises.unlink).mockResolvedValue(undefined);
+	const result = await createDirectory('/test/dir');
+	
+	t.is(result, false);
+});
 
-			const result = await deleteFile('/test/file.txt', true);
-			
-			expect(result).toBe(true);
-			expect(fs.promises.unlink).toHaveBeenCalledWith(path.resolve('/test/file.txt'));
-		});
+test('deleteFile - should delete file when force is true', async (t) => {
+	mockFs.promises.stat.resolves({ isFile: () => true, isDirectory: () => false } as any);
+	mockFs.promises.unlink.resolves(undefined);
 
-		it('should delete directory when force is true', async () => {
-			vi.mocked(fs.promises.stat).mockResolvedValue({ isFile: () => false, isDirectory: () => true } as any);
-			vi.mocked(fs.promises.rmdir).mockResolvedValue(undefined);
+	const result = await deleteFile('/test/file.txt', true);
+	
+	t.is(result, true);
+	t.true(mockFs.promises.unlink.calledWith(path.resolve('/test/file.txt')));
+});
 
-			const result = await deleteFile('/test/dir', true);
-			
-			expect(result).toBe(true);
-			expect(fs.promises.rmdir).toHaveBeenCalledWith(path.resolve('/test/dir'), { recursive: true });
-		});
+test('deleteFile - should delete directory when force is true', async (t) => {
+	mockFs.promises.stat.resolves({ isFile: () => false, isDirectory: () => true } as any);
+	mockFs.promises.rmdir.resolves(undefined);
 
-		it('should return false when force is false', async () => {
-			vi.mocked(fs.promises.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
+	const result = await deleteFile('/test/dir', true);
+	
+	t.is(result, true);
+	t.true(mockFs.promises.rmdir.calledWith(path.resolve('/test/dir'), { recursive: true }));
+});
 
-			const result = await deleteFile('/test/file.txt', false);
-			
-			expect(result).toBe(false);
-			expect(fs.promises.unlink).not.toHaveBeenCalled();
-		});
+test('deleteFile - should return false when force is false', async (t) => {
+	mockFs.promises.stat.resolves({ isFile: () => true, isDirectory: () => false } as any);
 
-		it('should return false when file does not exist', async () => {
-			const error = new Error('File not found') as any;
-			error.code = 'ENOENT';
-			vi.mocked(fs.promises.stat).mockRejectedValue(error);
+	const result = await deleteFile('/test/file.txt', false);
+	
+	t.is(result, false);
+	t.false(mockFs.promises.unlink.called);
+});
 
-			const result = await deleteFile('/test/nonexistent.txt', true);
-			
-			expect(result).toBe(false);
-		});
+test('deleteFile - should return false when file does not exist', async (t) => {
+	const error = new Error('File not found') as any;
+	error.code = 'ENOENT';
+	mockFs.promises.stat.rejects(error);
 
-		it('should return false on other errors', async () => {
-			vi.mocked(fs.promises.stat).mockRejectedValue(new Error('Permission denied'));
+	const result = await deleteFile('/test/nonexistent.txt', true);
+	
+	t.is(result, false);
+});
 
-			const result = await deleteFile('/test/file.txt', true);
-			
-			expect(result).toBe(false);
-		});
-	});
+test('deleteFile - should return false on other errors', async (t) => {
+	mockFs.promises.stat.rejects(new Error('Permission denied'));
 
-	describe('displayTree', () => {
-		it('should display directory tree', async () => {
-			vi.mocked(fs.promises.access).mockResolvedValue(undefined);
-			vi.mocked(fs.promises.readdir).mockResolvedValue([
-				{ name: 'dir1', isDirectory: () => true } as any,
-				{ name: 'file1.txt', isDirectory: () => false } as any,
-				{ name: 'file2.js', isDirectory: () => false } as any,
-			]);
+	const result = await deleteFile('/test/file.txt', true);
+	
+	t.is(result, false);
+});
 
-			const result = await displayTree('.');
-			
-			expect(result).toContain('├── dir1/');
-			expect(result).toContain('├── file1.txt');
-			expect(result).toContain('└── file2.js');
-		});
+test('displayTree - should display directory tree', async (t) => {
+	mockFs.promises.access.resolves(undefined);
+	mockFs.promises.readdir.resolves([
+		{ name: 'dir1', isDirectory: () => true } as any,
+		{ name: 'file1.txt', isDirectory: () => false } as any,
+		{ name: 'file2.js', isDirectory: () => false } as any,
+	]);
 
-		it('should handle directory not found', async () => {
-			vi.mocked(fs.promises.access).mockRejectedValue(new Error('Not found'));
+	const result = await displayTree('.');
+	
+	t.true(result.includes('├── dir1/'));
+	t.true(result.includes('├── file1.txt'));
+	t.true(result.includes('└── file2.js'));
+});
 
-			const result = await displayTree('/nonexistent');
-			
-			expect(result).toBe('Directory not found: /nonexistent');
-		});
+test('displayTree - should handle directory not found', async (t) => {
+	mockFs.promises.access.rejects(new Error('Not found'));
 
-		it('should filter hidden files when showHidden is false', async () => {
-			vi.mocked(fs.promises.access).mockResolvedValue(undefined);
-			vi.mocked(fs.promises.readdir).mockResolvedValue([
-				{ name: '.hidden', isDirectory: () => false } as any,
-				{ name: 'visible.txt', isDirectory: () => false } as any,
-			]);
+	const result = await displayTree('/nonexistent');
+	
+	t.is(result, 'Directory not found: /nonexistent');
+});
 
-			const result = await displayTree('.', '*', false, false);
-			
-			expect(result).not.toContain('.hidden');
-			expect(result).toContain('visible.txt');
-		});
+test('displayTree - should filter hidden files when showHidden is false', async (t) => {
+	mockFs.promises.access.resolves(undefined);
+	mockFs.promises.readdir.resolves([
+		{ name: '.hidden', isDirectory: () => false } as any,
+		{ name: 'visible.txt', isDirectory: () => false } as any,
+	]);
 
-		it('should show hidden files when showHidden is true', async () => {
-			vi.mocked(fs.promises.access).mockResolvedValue(undefined);
-			vi.mocked(fs.promises.readdir).mockResolvedValue([
-				{ name: '.env', isDirectory: () => false } as any,
-				{ name: 'visible.txt', isDirectory: () => false } as any,
-			]);
+	const result = await displayTree('.', '*', false, false);
+	
+	t.false(result.includes('.hidden'));
+	t.true(result.includes('visible.txt'));
+});
 
-			const result = await displayTree('.', '*', false, true);
-			
-			expect(result).toContain('.env');
-			expect(result).toContain('visible.txt');
-		});
+test('displayTree - should show hidden files when showHidden is true', async (t) => {
+	mockFs.promises.access.resolves(undefined);
+	mockFs.promises.readdir.resolves([
+		{ name: '.env', isDirectory: () => false } as any,
+		{ name: 'visible.txt', isDirectory: () => false } as any,
+	]);
 
-		it('should handle errors during readdir', async () => {
-			vi.mocked(fs.promises.access).mockResolvedValue(undefined);
-			vi.mocked(fs.promises.readdir).mockRejectedValue(new Error('Permission denied'));
+	const result = await displayTree('.', '*', false, true);
+	
+	t.true(result.includes('.env'));
+	t.true(result.includes('visible.txt'));
+});
 
-			const result = await displayTree('.');
-			
-			expect(result).toContain('Error reading directory');
-		});
-	});
+test('displayTree - should handle errors during readdir', async (t) => {
+	mockFs.promises.access.resolves(undefined);
+	mockFs.promises.readdir.rejects(new Error('Permission denied'));
 
-	describe('shouldIgnore', () => {
-		it('should ignore node_modules', () => {
-			expect(shouldIgnore('/project/node_modules')).toBe(true);
-			expect(shouldIgnore('node_modules')).toBe(true);
-		});
+	const result = await displayTree('.');
+	
+	t.true(result.includes('Error reading directory'));
+});
 
-		it('should ignore .git directory', () => {
-			expect(shouldIgnore('/project/.git')).toBe(true);
-			expect(shouldIgnore('.git')).toBe(true);
-		});
+test('shouldIgnore - should ignore node_modules', (t) => {
+	t.is(shouldIgnore('/project/node_modules'), true);
+	t.is(shouldIgnore('node_modules'), true);
+});
 
-		it('should ignore files matching glob patterns', () => {
-			expect(shouldIgnore('file.pyc')).toBe(true);
-			expect(shouldIgnore('app.log')).toBe(true);
-			expect(shouldIgnore('temp.tmp')).toBe(true);
-		});
+test('shouldIgnore - should ignore .git directory', (t) => {
+	t.is(shouldIgnore('/project/.git'), true);
+	t.is(shouldIgnore('.git'), true);
+});
 
-		it('should ignore hidden files except allowed ones', () => {
-			expect(shouldIgnore('.hidden')).toBe(true);
-			expect(shouldIgnore('.env')).toBe(false);
-			// Note: .gitignore is incorrectly matched because it contains '.git'
-			// This is a bug in the shouldIgnore function but we test current behavior
-			expect(shouldIgnore('.gitignore')).toBe(true);
-			expect(shouldIgnore('.dockerfile')).toBe(false);
-		});
+test('shouldIgnore - should ignore files matching glob patterns', (t) => {
+	t.is(shouldIgnore('file.pyc'), true);
+	t.is(shouldIgnore('app.log'), true);
+	t.is(shouldIgnore('temp.tmp'), true);
+});
 
-		it('should not ignore regular files', () => {
-			expect(shouldIgnore('app.js')).toBe(false);
-			expect(shouldIgnore('README.md')).toBe(false);
-			expect(shouldIgnore('package.json')).toBe(false);
-		});
+test('shouldIgnore - should ignore hidden files except allowed ones', (t) => {
+	t.is(shouldIgnore('.hidden'), true);
+	t.is(shouldIgnore('.env'), false);
+	// Note: .gitignore is incorrectly matched because it contains '.git'
+	// This is a bug in the shouldIgnore function but we test current behavior
+	t.is(shouldIgnore('.gitignore'), true);
+	t.is(shouldIgnore('.dockerfile'), false);
+});
 
-		it('should ignore Python-specific patterns', () => {
-			expect(shouldIgnore('__pycache__')).toBe(true);
-			expect(shouldIgnore('venv')).toBe(true);
-			expect(shouldIgnore('.venv')).toBe(true);
-		});
+test('shouldIgnore - should not ignore regular files', (t) => {
+	t.is(shouldIgnore('app.js'), false);
+	t.is(shouldIgnore('README.md'), false);
+	t.is(shouldIgnore('package.json'), false);
+});
 
-		it('should ignore IDE directories', () => {
-			expect(shouldIgnore('.idea')).toBe(true);
-			expect(shouldIgnore('.vscode')).toBe(true);
-		});
+test('shouldIgnore - should ignore Python-specific patterns', (t) => {
+	t.is(shouldIgnore('__pycache__'), true);
+	t.is(shouldIgnore('venv'), true);
+	t.is(shouldIgnore('.venv'), true);
+});
 
-		it('should ignore build directories', () => {
-			expect(shouldIgnore('build')).toBe(true);
-			expect(shouldIgnore('dist')).toBe(true);
-		});
+test('shouldIgnore - should ignore IDE directories', (t) => {
+	t.is(shouldIgnore('.idea'), true);
+	t.is(shouldIgnore('.vscode'), true);
+});
 
-		it('should ignore OS-specific files', () => {
-			expect(shouldIgnore('.DS_Store')).toBe(true);
-		});
-	});
+test('shouldIgnore - should ignore build directories', (t) => {
+	t.is(shouldIgnore('build'), true);
+	t.is(shouldIgnore('dist'), true);
+});
+
+test('shouldIgnore - should ignore OS-specific files', (t) => {
+	t.is(shouldIgnore('.DS_Store'), true);
 });

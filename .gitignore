@@ -4,4 +4,6 @@ dist
 .DS_Store
 test-coverage.txt
 test-output.txt
-test-results.xml
+test-results.xmlcoverage/
+coverage-report.json
+full-test-output.txt

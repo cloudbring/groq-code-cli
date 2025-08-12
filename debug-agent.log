@@ -1,0 +1,7 @@
+[2025-08-12T07:16:31.808Z] Interrupting current request
+[2025-08-12T07:16:31.809Z] Initializing Groq client...
+[2025-08-12T07:16:31.809Z] Environment variable GROQ_API_KEY not found, checking config file
+[2025-08-12T07:16:31.809Z] No API key found anywhere
+[2025-08-12T07:16:31.809Z] Initializing Groq client...
+[2025-08-12T07:16:31.809Z] Environment variable GROQ_API_KEY not found, checking config file
+[2025-08-12T07:16:31.809Z] No API key found anywhere

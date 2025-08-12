@@ -1,409 +1,407 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import test from 'ava';
+import sinon from 'sinon';
+import { render, cleanup } from '@testing-library/react';
 import MessageHistory from '@src/ui/components/core/MessageHistory';
 import { ChatMessage } from '@src/ui/hooks/useAgent';
 
-// Mock the ToolHistoryItem component
-vi.mock('@src/ui/components/display/ToolHistoryItem', () => ({
-  default: vi.fn(({ tool }) => <div data-testid={`tool-${tool.tool}`}>Tool: {tool.tool}</div>)
-}));
+// Create stubs for the child components
+const ToolHistoryItemStub = sinon.stub().callsFake(({ tool }) => <div data-testid={`tool-${tool.tool}`}>Tool: {tool.tool}</div>);
 
-// Mock markdown parsing
-vi.mock('@src/utils/markdown', () => ({
-  parseMarkdown: vi.fn((content) => [
-    { type: 'text', content }
-  ]),
-  parseInlineElements: vi.fn((content) => [
-    { type: 'text', content }
-  ])
-}));
+// Create stubs for markdown parsing
+const parseMarkdownStub = sinon.stub().callsFake((content) => [
+  { type: 'text', content }
+]);
 
-// Mock ink components
-vi.mock('ink', () => ({
-  Box: ({ children, marginBottom, marginY, paddingLeft, flexDirection }: any) => (
-    <div 
-      data-testid="box" 
-      data-margin-bottom={marginBottom}
-      data-margin-y={marginY}
-      data-padding-left={paddingLeft}
-      data-flex-direction={flexDirection}
-    >
-      {children}
-    </div>
-  ),
-  Text: ({ children, color, bold, italic, dimColor, underline }: any) => (
-    <span 
-      data-testid="text"
-      data-color={color}
-      data-bold={bold}
-      data-italic={italic}
-      data-dim={dimColor}
-      data-underline={underline}
-    >
-      {children}
-    </span>
-  )
-}));
+const parseInlineElementsStub = sinon.stub().callsFake((content) => [
+  { type: 'text', content }
+]);
 
-describe('MessageHistory', () => {
-  let scrollRef: any;
+// Create stubs for ink components
+const BoxStub = sinon.stub().callsFake(({ children, marginBottom, marginY, paddingLeft, flexDirection }: any) => (
+  <div 
+    data-testid="box" 
+    data-margin-bottom={marginBottom}
+    data-margin-y={marginY}
+    data-padding-left={paddingLeft}
+    data-flex-direction={flexDirection}
+  >
+    {children}
+  </div>
+));
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    scrollRef = { current: { scrollToBottom: vi.fn() } };
-    // Mock useRef
-    vi.spyOn(React, 'useRef').mockReturnValue(scrollRef);
+const TextStub = sinon.stub().callsFake(({ children, color, bold, italic, dimColor, underline }: any) => (
+  <span 
+    data-testid="text"
+    data-color={color}
+    data-bold={bold}
+    data-italic={italic}
+    data-dim={dimColor}
+    data-underline={underline}
+  >
+    {children}
+  </span>
+));
+
+let scrollRef: any;
+let useRefStub: sinon.SinonStub;
+
+test.beforeEach(() => {
+  ToolHistoryItemStub.resetHistory();
+  parseMarkdownStub.resetHistory();
+  parseInlineElementsStub.resetHistory();
+  BoxStub.resetHistory();
+  TextStub.resetHistory();
+  scrollRef = { current: { scrollToBottom: sinon.stub() } };
+  // Create useRef stub
+  useRefStub = sinon.stub(React, 'useRef').returns(scrollRef);
+});
+
+test.afterEach.always(() => {
+  cleanup();
+  if (useRefStub) {
+    useRefStub.restore();
+  }
+});
+
+test('MessageHistory - rendering messages - should render user messages', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'user',
+      content: 'Hello, world!',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
+
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('>'));
+  t.truthy(getByText('Hello, world!'));
+});
+
+test('MessageHistory - rendering messages - should render assistant messages', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Hello! How can I help you?',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
+
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('Hello! How can I help you?'));
+});
+
+test('MessageHistory - rendering messages - should render system messages', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'system',
+      content: 'System notification',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
+
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('System notification'));
+});
+
+// Test removed: 'should render tool messages' - Testing internal implementation details (data-testid)
+
+test('MessageHistory - rendering messages - should render multiple messages', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'user',
+      content: 'First message',
+      timestamp: new Date('2024-01-01T12:00:00')
+    },
+    {
+      id: '2',
+      role: 'assistant',
+      content: 'Response',
+      timestamp: new Date('2024-01-01T12:00:01')
+    },
+    {
+      id: '3',
+      role: 'user',
+      content: 'Second message',
+      timestamp: new Date('2024-01-01T12:00:02')
+    }
+  ];
+
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('First message'));
+  t.truthy(getByText('Response'));
+  t.truthy(getByText('Second message'));
+});
+
+test('MessageHistory - reasoning display - should show reasoning when showReasoning is true', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'The answer is 42',
+      reasoning: 'I calculated this by...',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
+
+  const { getByText } = render(<MessageHistory messages={messages} showReasoning={true} />);
+  
+  t.truthy(getByText('I calculated this by...'));
+  t.truthy(getByText('The answer is 42'));
+});
+
+test('MessageHistory - reasoning display - should hide reasoning when showReasoning is false', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'The answer is 42',
+      reasoning: 'I calculated this by...',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
+
+  const { getByText, queryByText } = render(<MessageHistory messages={messages} showReasoning={false} />);
+  
+  t.falsy(queryByText('I calculated this by...'));
+  t.truthy(getByText('The answer is 42'));
+});
+
+test('MessageHistory - reasoning display - should show reasoning by default', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'The answer is 42',
+      reasoning: 'I calculated this by...',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
+
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('I calculated this by...'));
+});
+
+// Helper function to set up markdown stubs for specific tests
+const setupMarkdownStubs = () => {
+  parseMarkdownStub.callsFake((content) => {
+    if (content.includes('```')) {
+      return [
+        { type: 'code-block', content: 'code content' }
+      ];
+    }
+    if (content.startsWith('#')) {
+      return [
+        { type: 'heading', content: content.replace('#', '').trim(), level: 1 }
+      ];
+    }
+    if (content.includes('`') || content.includes('**')) {
+      return [
+        { type: 'mixed-line', content }
+      ];
+    }
+    return [
+      { type: 'text', content }
+    ];
   });
 
-  describe('rendering messages', () => {
-    it('should render user messages', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'user',
-          content: 'Hello, world!',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
+  parseInlineElementsStub.callsFake((content) => {
+    if (content.includes('`')) {
+      return [
+        { type: 'code', content: 'inline code' }
       ];
-
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('>')).toBeTruthy();
-      expect(getByText('Hello, world!')).toBeTruthy();
-    });
-
-    it('should render assistant messages', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'Hello! How can I help you?',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
+    }
+    if (content.includes('**')) {
+      return [
+        { type: 'bold', content: 'bold text' }
       ];
-
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('Hello! How can I help you?')).toBeTruthy();
-    });
-
-    it('should render system messages', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'system',
-          content: 'System notification',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
+    }
+    if (content.includes('*')) {
+      return [
+        { type: 'italic', content: 'italic text' }
       ];
-
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('System notification')).toBeTruthy();
-    });
-
-    // Test removed: 'should render tool messages' - Testing internal implementation details (data-testid)
-
-    it('should render multiple messages', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'user',
-          content: 'First message',
-          timestamp: new Date('2024-01-01T12:00:00')
-        },
-        {
-          id: '2',
-          role: 'assistant',
-          content: 'Response',
-          timestamp: new Date('2024-01-01T12:00:01')
-        },
-        {
-          id: '3',
-          role: 'user',
-          content: 'Second message',
-          timestamp: new Date('2024-01-01T12:00:02')
-        }
-      ];
-
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('First message')).toBeTruthy();
-      expect(getByText('Response')).toBeTruthy();
-      expect(getByText('Second message')).toBeTruthy();
-    });
+    }
+    return [
+      { type: 'text', content }
+    ];
   });
+};
 
-  describe('reasoning display', () => {
-    it('should show reasoning when showReasoning is true', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'The answer is 42',
-          reasoning: 'I calculated this by...',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+test('MessageHistory - markdown rendering - should render code blocks', (t) => {
+  setupMarkdownStubs();
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: '```\ncode content\n```',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-      const { getByText } = render(<MessageHistory messages={messages} showReasoning={true} />);
-      
-      expect(getByText('I calculated this by...')).toBeTruthy();
-      expect(getByText('The answer is 42')).toBeTruthy();
-    });
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('code content'));
+});
 
-    it('should hide reasoning when showReasoning is false', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'The answer is 42',
-          reasoning: 'I calculated this by...',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+test('MessageHistory - markdown rendering - should render headings', (t) => {
+  setupMarkdownStubs();
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: '# Main Title',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-      const { getByText, queryByText } = render(<MessageHistory messages={messages} showReasoning={false} />);
-      
-      expect(queryByText('I calculated this by...')).toBeFalsy();
-      expect(getByText('The answer is 42')).toBeTruthy();
-    });
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('Main Title'));
+});
 
-    it('should show reasoning by default', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'The answer is 42',
-          reasoning: 'I calculated this by...',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+test('MessageHistory - markdown rendering - should render inline code', (t) => {
+  setupMarkdownStubs();
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Use `npm install` to install',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('I calculated this by...')).toBeTruthy();
-    });
-  });
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('inline code'));
+});
 
-  describe('markdown rendering', () => {
-    beforeEach(async () => {
-      // Reset markdown mocks for these tests
-      const { parseMarkdown, parseInlineElements } = vi.mocked(await import('@src/utils/markdown'));
-      
-      parseMarkdown.mockImplementation((content) => {
-        if (content.includes('```')) {
-          return [
-            { type: 'code-block', content: 'code content' }
-          ];
-        }
-        if (content.startsWith('#')) {
-          return [
-            { type: 'heading', content: content.replace('#', '').trim(), level: 1 }
-          ];
-        }
-        if (content.includes('`') || content.includes('**')) {
-          return [
-            { type: 'mixed-line', content }
-          ];
-        }
-        return [
-          { type: 'text', content }
-        ];
-      });
+test('MessageHistory - markdown rendering - should render bold text', (t) => {
+  setupMarkdownStubs();
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'This is **important**',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-      parseInlineElements.mockImplementation((content) => {
-        if (content.includes('`')) {
-          return [
-            { type: 'code', content: 'inline code' }
-          ];
-        }
-        if (content.includes('**')) {
-          return [
-            { type: 'bold', content: 'bold text' }
-          ];
-        }
-        if (content.includes('*')) {
-          return [
-            { type: 'italic', content: 'italic text' }
-          ];
-        }
-        return [
-          { type: 'text', content }
-        ];
-      });
-    });
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('bold text'));
+});
 
-    it('should render code blocks', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: '```\ncode content\n```',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+test('MessageHistory - markdown rendering - should render italic text', (t) => {
+  setupMarkdownStubs();
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'This is *emphasized*',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('code content')).toBeTruthy();
-    });
+  const { container } = render(<MessageHistory messages={messages} />);
+  
+  // Check that the content is rendered (the mock should transform it)
+  // Since the mock may not be properly transforming, just check the raw content is there
+  t.true(container.textContent?.includes('emphasized') || false);
+});
 
-    it('should render headings', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: '# Main Title',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+// Scrolling behavior tests removed - DOM scrolling is difficult to test reliably
 
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('Main Title')).toBeTruthy();
-    });
+test('MessageHistory - empty content handling - should handle messages with empty content', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: '',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-    it('should render inline code', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'Use `npm install` to install',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+  const { container } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(container);
+});
 
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('inline code')).toBeTruthy();
-    });
+test('MessageHistory - empty content handling - should handle tool messages without content', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'tool',
+      content: '',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-    it('should render bold text', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'This is **important**',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+  // Just verify the component doesn't crash with empty tool content
+  const { container } = render(<MessageHistory messages={messages} />);
+  
+  // The component should render without errors
+  t.truthy(container);
+});
 
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('bold text')).toBeTruthy();
-    });
+test('MessageHistory - timestamp formatting - should format timestamps correctly', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'user',
+      content: 'Test message',
+      timestamp: new Date('2024-01-01T15:30:45')
+    }
+  ];
 
-    it('should render italic text', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'This is *emphasized*',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+  render(<MessageHistory messages={messages} />);
+  
+  // The component formats timestamps but doesn't display them in the current implementation
+  // This test ensures the formatTimestamp function works correctly
+  t.pass();
+});
 
-      const { container } = render(<MessageHistory messages={messages} />);
-      
-      // Check that the content is rendered (the mock should transform it)
-      // Since the mock may not be properly transforming, just check the raw content is there
-      expect(container.textContent).toContain('emphasized');
-    });
-  });
+test('MessageHistory - edge cases - should handle empty message array', (t) => {
+  const { container } = render(<MessageHistory messages={[]} />);
+  
+  t.truthy(container);
+});
 
-  // Scrolling behavior tests removed - DOM scrolling is difficult to test reliably
+test('MessageHistory - edge cases - should handle null reasoning', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Response',
+      reasoning: null as any,
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-  describe('empty content handling', () => {
-    it('should handle messages with empty content', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: '',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
+  const { getByText } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(getByText('Response'));
+});
 
-      const { container } = render(<MessageHistory messages={messages} />);
-      
-      expect(container).toBeTruthy();
-    });
+test('MessageHistory - edge cases - should handle undefined tool data', (t) => {
+  const messages: ChatMessage[] = [
+    {
+      id: '1',
+      role: 'tool',
+      content: '',
+      timestamp: new Date('2024-01-01T12:00:00')
+    }
+  ];
 
-    it('should handle tool messages without content', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'tool',
-          content: '',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
-
-      // Just verify the component doesn't crash with empty tool content
-      const { container } = render(<MessageHistory messages={messages} />);
-      
-      // The component should render without errors
-      expect(container).toBeTruthy();
-    });
-  });
-
-  describe('timestamp formatting', () => {
-    it('should format timestamps correctly', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'user',
-          content: 'Test message',
-          timestamp: new Date('2024-01-01T15:30:45')
-        }
-      ];
-
-      render(<MessageHistory messages={messages} />);
-      
-      // The component formats timestamps but doesn't display them in the current implementation
-      // This test ensures the formatTimestamp function works correctly
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('edge cases', () => {
-    it('should handle empty message array', () => {
-      const { container } = render(<MessageHistory messages={[]} />);
-      
-      expect(container).toBeTruthy();
-    });
-
-    it('should handle null reasoning', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'assistant',
-          content: 'Response',
-          reasoning: null as any,
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
-
-      const { getByText } = render(<MessageHistory messages={messages} />);
-      
-      expect(getByText('Response')).toBeTruthy();
-    });
-
-    it('should handle undefined tool data', () => {
-      const messages: ChatMessage[] = [
-        {
-          id: '1',
-          role: 'tool',
-          content: '',
-          timestamp: new Date('2024-01-01T12:00:00')
-        }
-      ];
-
-      const { container } = render(<MessageHistory messages={messages} />);
-      
-      expect(container).toBeTruthy();
-    });
-  });
+  const { container } = render(<MessageHistory messages={messages} />);
+  
+  t.truthy(container);
 });

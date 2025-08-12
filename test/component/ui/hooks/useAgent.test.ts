@@ -1,567 +1,575 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import test from 'ava';
+import sinon from 'sinon';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useAgent, ChatMessage, ToolExecution } from '@src/ui/hooks/useAgent';
 import { Agent } from '@src/core/agent';
 
-// Mock the Agent class
-vi.mock('@src/core/agent', () => ({
-  Agent: vi.fn().mockImplementation(() => ({
-    setToolCallbacks: vi.fn(),
-    chat: vi.fn(),
-    setApiKey: vi.fn(),
-    setSessionAutoApprove: vi.fn(),
-    clearHistory: vi.fn(),
-    interrupt: vi.fn()
-  }))
-}));
+// Setup afterEach cleanup
+test.afterEach.always(() => {
+  cleanup();
+  sinon.restore();
+});
 
-describe('useAgent', () => {
-  let mockAgent: any;
-  let mockOnStartRequest: any;
-  let mockOnAddApiTokens: any;
-  let mockOnPauseRequest: any;
-  let mockOnResumeRequest: any;
-  let mockOnCompleteRequest: any;
-  let toolCallbacks: any;
+// Mock setup
+let mockAgent: any;
+let mockOnStartRequest: any;
+let mockOnAddApiTokens: any;
+let mockOnPauseRequest: any;
+let mockOnResumeRequest: any;
+let mockOnCompleteRequest: any;
+let toolCallbacks: any;
 
-  beforeEach(() => {
-    mockAgent = {
-      setToolCallbacks: vi.fn(),
-      chat: vi.fn(),
-      setApiKey: vi.fn(),
-      setSessionAutoApprove: vi.fn(),
-      clearHistory: vi.fn(),
-      interrupt: vi.fn()
-    };
+test.beforeEach(() => {
+  mockAgent = {
+    setToolCallbacks: sinon.stub(),
+    chat: sinon.stub(),
+    setApiKey: sinon.stub(),
+    setSessionAutoApprove: sinon.stub(),
+    clearHistory: sinon.stub(),
+    interrupt: sinon.stub()
+  };
 
-    mockOnStartRequest = vi.fn();
-    mockOnAddApiTokens = vi.fn();
-    mockOnPauseRequest = vi.fn();
-    mockOnResumeRequest = vi.fn();
-    mockOnCompleteRequest = vi.fn();
-    toolCallbacks = {};
+  mockOnStartRequest = sinon.stub();
+  mockOnAddApiTokens = sinon.stub();
+  mockOnPauseRequest = sinon.stub();
+  mockOnResumeRequest = sinon.stub();
+  mockOnCompleteRequest = sinon.stub();
+  toolCallbacks = {};
 
-    // Capture the tool callbacks when they're set
-    mockAgent.setToolCallbacks.mockImplementation((callbacks: any) => {
-      toolCallbacks = callbacks;
-    });
+  // Capture the tool callbacks when they're set
+  mockAgent.setToolCallbacks.callsFake((callbacks: any) => {
+    toolCallbacks = callbacks;
+  });
+});
 
-    (Agent as any).mockImplementation(() => mockAgent);
+test('useAgent - should initialize with correct default values', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  t.deepEqual(result.current.messages, []);
+  t.deepEqual(result.current.userMessageHistory, []);
+  t.is(result.current.isProcessing, false);
+  t.is(result.current.currentToolExecution, null);
+  t.is(result.current.pendingApproval, null);
+  t.is(result.current.pendingMaxIterations, null);
+  t.is(result.current.sessionAutoApprove, false);
+  t.is(result.current.showReasoning, true);
+});
+
+test('useAgent - should provide all required methods', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  t.is(typeof result.current.sendMessage, 'function');
+  t.is(typeof result.current.approveToolExecution, 'function');
+  t.is(typeof result.current.respondToMaxIterations, 'function');
+  t.is(typeof result.current.addMessage, 'function');
+  t.is(typeof result.current.setApiKey, 'function');
+  t.is(typeof result.current.clearHistory, 'function');
+  t.is(typeof result.current.toggleAutoApprove, 'function');
+  t.is(typeof result.current.toggleReasoning, 'function');
+  t.is(typeof result.current.interruptRequest, 'function');
+});
+
+test('useAgent - should add user message and call agent', async (t) => {
+  mockAgent.chat.resolves(undefined);
+  
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+
+  await act(async () => {
+    await result.current.sendMessage('Hello, world!');
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
+  t.is(result.current.messages.length, 1);
+  t.is(result.current.messages[0].role, 'user');
+  t.is(result.current.messages[0].content, 'Hello, world!');
+  t.deepEqual(result.current.userMessageHistory, ['Hello, world!']);
+  t.true(mockAgent.chat.calledWith('Hello, world!'));
+  t.true(mockOnStartRequest.called);
+  t.true(mockOnCompleteRequest.called);
+});
+
+test('useAgent - should not send message if already processing', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  // Start first message (make it hang)
+  mockAgent.chat.callsFake(() => new Promise(() => {}));
+  
+  act(() => {
+    result.current.sendMessage('First message');
   });
 
-  describe('initial state', () => {
-    it('should initialize with correct default values', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  t.is(result.current.isProcessing, true);
 
-      expect(result.current.messages).toEqual([]);
-      expect(result.current.userMessageHistory).toEqual([]);
-      expect(result.current.isProcessing).toBe(false);
-      expect(result.current.currentToolExecution).toBeNull();
-      expect(result.current.pendingApproval).toBeNull();
-      expect(result.current.pendingMaxIterations).toBeNull();
-      expect(result.current.sessionAutoApprove).toBe(false);
-      expect(result.current.showReasoning).toBe(true);
-    });
-
-    it('should provide all required methods', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      expect(typeof result.current.sendMessage).toBe('function');
-      expect(typeof result.current.approveToolExecution).toBe('function');
-      expect(typeof result.current.respondToMaxIterations).toBe('function');
-      expect(typeof result.current.addMessage).toBe('function');
-      expect(typeof result.current.setApiKey).toBe('function');
-      expect(typeof result.current.clearHistory).toBe('function');
-      expect(typeof result.current.toggleAutoApprove).toBe('function');
-      expect(typeof result.current.toggleReasoning).toBe('function');
-      expect(typeof result.current.interruptRequest).toBe('function');
-    });
+  // Try to send second message while processing
+  await act(async () => {
+    await result.current.sendMessage('Second message');
   });
 
-  describe('sendMessage', () => {
-    it('should add user message and call agent', async () => {
-      mockAgent.chat.mockResolvedValue(undefined);
-      
-      const { result } = renderHook(() => 
-        useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
-      );
+  // Should only have the first message
+  t.is(result.current.messages.length, 1);
+  t.is(result.current.messages[0].content, 'First message');
+});
 
-      await act(async () => {
-        await result.current.sendMessage('Hello, world!');
-      });
+test('useAgent - should handle chat errors gracefully', async (t) => {
+  mockAgent.chat.rejects(new Error('API Error'));
+  
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
 
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].role).toBe('user');
-      expect(result.current.messages[0].content).toBe('Hello, world!');
-      expect(result.current.userMessageHistory).toEqual(['Hello, world!']);
-      expect(mockAgent.chat).toHaveBeenCalledWith('Hello, world!');
-      expect(mockOnStartRequest).toHaveBeenCalled();
-      expect(mockOnCompleteRequest).toHaveBeenCalled();
-    });
-
-    it('should not send message if already processing', async () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      // Start first message (make it hang)
-      mockAgent.chat.mockImplementation(() => new Promise(() => {}));
-      
-      act(() => {
-        result.current.sendMessage('First message');
-      });
-
-      expect(result.current.isProcessing).toBe(true);
-
-      // Try to send second message while processing
-      await act(async () => {
-        await result.current.sendMessage('Second message');
-      });
-
-      // Should only have the first message
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].content).toBe('First message');
-    });
-
-    it('should handle chat errors gracefully', async () => {
-      mockAgent.chat.mockRejectedValue(new Error('API Error'));
-      
-      const { result } = renderHook(() => 
-        useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
-      );
-
-      await act(async () => {
-        await result.current.sendMessage('Test message');
-      });
-
-      expect(result.current.messages).toHaveLength(2);
-      expect(result.current.messages[1].role).toBe('system');
-      expect(result.current.messages[1].content).toContain('Error: API Error');
-      expect(result.current.isProcessing).toBe(false);
-      expect(mockOnCompleteRequest).toHaveBeenCalled();
-    });
-
-    it('should handle API errors with status and error details', async () => {
-      const apiError = new Error('Unauthorized');
-      (apiError as any).status = 401;
-      (apiError as any).error = {
-        error: {
-          message: 'Invalid API key',
-          code: 'invalid_api_key'
-        }
-      };
-      
-      mockAgent.chat.mockRejectedValue(apiError);
-      
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      await act(async () => {
-        await result.current.sendMessage('Test message');
-      });
-
-      expect(result.current.messages[1].content).toContain('API Error (401): Invalid API key (Code: invalid_api_key)');
-    });
-
-    it('should ignore abort errors', async () => {
-      const abortError = new Error('Request was aborted');
-      abortError.name = 'AbortError';
-      
-      mockAgent.chat.mockRejectedValue(abortError);
-      
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      await act(async () => {
-        await result.current.sendMessage('Test message');
-      });
-
-      // Should only have user message, no error message
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].role).toBe('user');
-    });
+  await act(async () => {
+    await result.current.sendMessage('Test message');
   });
 
-  describe('tool execution callbacks', () => {
-    beforeEach(async () => {
-      // Initialize the hook and trigger sendMessage to set up the tool callbacks
-      const { result } = renderHook(() => 
-        useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
-      );
-      
-      // Send a message to trigger the setToolCallbacks call
-      await act(async () => {
-        await result.current.sendMessage('Test message');
-      });
-      
-      // toolCallbacks is now available from the outer scope
-    });
+  t.is(result.current.messages.length, 2);
+  t.is(result.current.messages[1].role, 'system');
+  t.true(result.current.messages[1].content.includes('Error: API Error'));
+  t.is(result.current.isProcessing, false);
+  t.true(mockOnCompleteRequest.called);
+});
 
-    it('should handle onThinkingText callback', () => {
-      // Test that tool callbacks are properly set up during initialization
-      expect(mockAgent.setToolCallbacks).toHaveBeenCalled();
-      expect(typeof toolCallbacks.onThinkingText).toBe('function');
-    });
+test('useAgent - should handle API errors with status and error details', async (t) => {
+  const apiError = new Error('Unauthorized');
+  (apiError as any).status = 401;
+  (apiError as any).error = {
+    error: {
+      message: 'Invalid API key',
+      code: 'invalid_api_key'
+    }
+  };
+  
+  mockAgent.chat.rejects(apiError);
+  
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-    it('should handle onFinalMessage callback', () => {
-      expect(typeof toolCallbacks.onFinalMessage).toBe('function');
-    });
-
-    it('should handle onToolStart callback', () => {
-      expect(typeof toolCallbacks.onToolStart).toBe('function');
-    });
-
-    it('should handle onToolEnd callback with success', () => {
-      expect(typeof toolCallbacks.onToolEnd).toBe('function');
-    });
-
-    it('should handle onToolEnd callback with failure', () => {
-      expect(typeof toolCallbacks.onToolEnd).toBe('function');
-    });
-
-    it('should handle onToolEnd callback with user rejection', () => {
-      expect(typeof toolCallbacks.onToolEnd).toBe('function');
-    });
-
-    it('should handle onApiUsage callback', () => {
-      expect(typeof toolCallbacks.onApiUsage).toBe('function');
-      // Test that the callback forwards to the metrics function
-      toolCallbacks.onApiUsage({
-        prompt_tokens: 10,
-        completion_tokens: 20,
-        total_tokens: 30
-      });
-      expect(mockOnAddApiTokens).toHaveBeenCalledWith({
-        prompt_tokens: 10,
-        completion_tokens: 20,
-        total_tokens: 30
-      });
-    });
-
-    it('should handle onToolApproval callback', () => {
-      expect(typeof toolCallbacks.onToolApproval).toBe('function');
-    });
-
-    it('should handle onMaxIterations callback', () => {
-      expect(typeof toolCallbacks.onMaxIterations).toBe('function');
-    });
+  await act(async () => {
+    await result.current.sendMessage('Test message');
   });
 
-  describe('tool approval', () => {
-    it('should approve tool execution', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  t.true(result.current.messages[1].content.includes('API Error (401): Invalid API key (Code: invalid_api_key)'));
+});
 
-      // Test that the approveToolExecution function exists
-      expect(typeof result.current.approveToolExecution).toBe('function');
-    });
+test('useAgent - should ignore abort errors', async (t) => {
+  const abortError = new Error('Request was aborted');
+  abortError.name = 'AbortError';
+  
+  mockAgent.chat.rejects(abortError);
+  
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-    it('should reject tool execution', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      const mockResolve = vi.fn();
-      
-      // Manually set pending approval state
-      act(() => {
-        result.current.sendMessage('Test');
-      });
-
-      // We need to simulate the pendingApproval state
-      // This is tricky to test directly due to the async nature and closure
-      expect(result.current.approveToolExecution).toBeDefined();
-    });
+  await act(async () => {
+    await result.current.sendMessage('Test message');
   });
 
-  describe('utility functions', () => {
-    it('should set API key on agent', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  // Should only have user message, no error message
+  t.is(result.current.messages.length, 1);
+  t.is(result.current.messages[0].role, 'user');
+});
 
-      act(() => {
-        result.current.setApiKey('test-api-key');
-      });
+test('useAgent - should handle onThinkingText callback', async (t) => {
+  // Initialize the hook and trigger sendMessage to set up the tool callbacks
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  // Send a message to trigger the setToolCallbacks call
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  // Test that tool callbacks are properly set up during initialization
+  t.true(mockAgent.setToolCallbacks.called);
+  t.is(typeof toolCallbacks.onThinkingText, 'function');
+});
 
-      expect(mockAgent.setApiKey).toHaveBeenCalledWith('test-api-key');
-    });
+test('useAgent - should handle onFinalMessage callback', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  t.is(typeof toolCallbacks.onFinalMessage, 'function');
+});
 
-    it('should toggle auto approve', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+test('useAgent - should handle onToolStart callback', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  t.is(typeof toolCallbacks.onToolStart, 'function');
+});
 
-      expect(result.current.sessionAutoApprove).toBe(false);
+test('useAgent - should handle onToolEnd callback', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  t.is(typeof toolCallbacks.onToolEnd, 'function');
+});
 
-      act(() => {
-        result.current.toggleAutoApprove();
-      });
+test('useAgent - should handle onApiUsage callback', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  t.is(typeof toolCallbacks.onApiUsage, 'function');
+  
+  // Test that the callback forwards to the metrics function
+  toolCallbacks.onApiUsage({
+    prompt_tokens: 10,
+    completion_tokens: 20,
+    total_tokens: 30
+  });
+  
+  t.true(mockOnAddApiTokens.calledWith({
+    prompt_tokens: 10,
+    completion_tokens: 20,
+    total_tokens: 30
+  }));
+});
 
-      expect(result.current.sessionAutoApprove).toBe(true);
-      expect(mockAgent.setSessionAutoApprove).toHaveBeenCalledWith(true);
+test('useAgent - should handle onToolApproval callback', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  t.is(typeof toolCallbacks.onToolApproval, 'function');
+});
 
-      act(() => {
-        result.current.toggleAutoApprove();
-      });
+test('useAgent - should handle onMaxIterations callback', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent, mockOnStartRequest, mockOnAddApiTokens, mockOnPauseRequest, mockOnResumeRequest, mockOnCompleteRequest)
+  );
+  
+  await act(async () => {
+    await result.current.sendMessage('Test message');
+  });
+  
+  t.is(typeof toolCallbacks.onMaxIterations, 'function');
+});
 
-      expect(result.current.sessionAutoApprove).toBe(false);
-      expect(mockAgent.setSessionAutoApprove).toHaveBeenCalledWith(false);
-    });
+test('useAgent - should approve tool execution', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-    it('should clear history', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  // Test that the approveToolExecution function exists
+  t.is(typeof result.current.approveToolExecution, 'function');
+});
 
-      // Add some messages first
-      act(() => {
-        result.current.addMessage({
-          role: 'user',
-          content: 'Test message'
-        });
-      });
+test('useAgent - should reject tool execution', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-      expect(result.current.messages).toHaveLength(1);
+  const mockResolve = sinon.stub();
+  
+  // Manually set pending approval state
+  act(() => {
+    result.current.sendMessage('Test');
+  });
 
-      act(() => {
-        result.current.clearHistory();
-      });
+  // We need to simulate the pendingApproval state
+  // This is tricky to test directly due to the async nature and closure
+  t.truthy(result.current.approveToolExecution);
+});
 
-      expect(result.current.messages).toHaveLength(0);
-      expect(result.current.userMessageHistory).toHaveLength(0);
-      expect(mockAgent.clearHistory).toHaveBeenCalled();
-    });
+test('useAgent - should set API key on agent', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-    it('should interrupt request', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  act(() => {
+    result.current.setApiKey('test-api-key');
+  });
 
-      act(() => {
-        result.current.interruptRequest();
-      });
+  t.true(mockAgent.setApiKey.calledWith('test-api-key'));
+});
 
-      expect(mockAgent.interrupt).toHaveBeenCalled();
-      expect(result.current.isProcessing).toBe(false);
-      expect(result.current.currentToolExecution).toBeNull();
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].role).toBe('system');
-      expect(result.current.messages[0].content).toBe('User has interrupted the request.');
-    });
+test('useAgent - should toggle auto approve', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-    it('should toggle reasoning display', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  t.is(result.current.sessionAutoApprove, false);
 
-      expect(result.current.showReasoning).toBe(true);
+  act(() => {
+    result.current.toggleAutoApprove();
+  });
 
-      act(() => {
-        result.current.toggleReasoning();
-      });
+  t.is(result.current.sessionAutoApprove, true);
+  t.true(mockAgent.setSessionAutoApprove.calledWith(true));
 
-      expect(result.current.showReasoning).toBe(false);
+  act(() => {
+    result.current.toggleAutoApprove();
+  });
 
-      act(() => {
-        result.current.toggleReasoning();
-      });
+  t.is(result.current.sessionAutoApprove, false);
+  t.true(mockAgent.setSessionAutoApprove.calledWith(false));
+});
 
-      expect(result.current.showReasoning).toBe(true);
+test('useAgent - should clear history', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  // Add some messages first
+  act(() => {
+    result.current.addMessage({
+      role: 'user',
+      content: 'Test message'
     });
   });
 
-  describe('message management', () => {
-    it('should add message with generated id and timestamp', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  t.is(result.current.messages.length, 1);
 
-      let messageId: string = '';
-      act(() => {
-        messageId = result.current.addMessage({
-          role: 'user',
-          content: 'Test message'
-        });
-      });
+  act(() => {
+    result.current.clearHistory();
+  });
 
-      expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0].id).toBe(messageId);
-      expect(result.current.messages[0].timestamp).toBeInstanceOf(Date);
-      expect(result.current.messages[0].role).toBe('user');
-      expect(result.current.messages[0].content).toBe('Test message');
-    });
+  t.is(result.current.messages.length, 0);
+  t.is(result.current.userMessageHistory.length, 0);
+  t.true(mockAgent.clearHistory.called);
+});
 
-    it('should add message with reasoning', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+test('useAgent - should interrupt request', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-      act(() => {
-        result.current.addMessage({
-          role: 'assistant',
-          content: 'Response',
-          reasoning: 'This is why I responded this way'
-        });
-      });
+  act(() => {
+    result.current.interruptRequest();
+  });
 
-      expect(result.current.messages[0].reasoning).toBe('This is why I responded this way');
-    });
+  t.true(mockAgent.interrupt.called);
+  t.is(result.current.isProcessing, false);
+  t.is(result.current.currentToolExecution, null);
+  t.is(result.current.messages.length, 1);
+  t.is(result.current.messages[0].role, 'system');
+  t.is(result.current.messages[0].content, 'User has interrupted the request.');
+});
 
-    it('should generate unique message ids', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+test('useAgent - should toggle reasoning display', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-      let id1: string = '';
-      let id2: string = '';
-      act(() => {
-        id1 = result.current.addMessage({
-          role: 'user',
-          content: 'Message 1'
-        });
-        id2 = result.current.addMessage({
-          role: 'user',
-          content: 'Message 2'
-        });
-      });
+  t.is(result.current.showReasoning, true);
 
-      expect(id1).not.toBe(id2);
-      expect(result.current.messages).toHaveLength(2);
+  act(() => {
+    result.current.toggleReasoning();
+  });
+
+  t.is(result.current.showReasoning, false);
+
+  act(() => {
+    result.current.toggleReasoning();
+  });
+
+  t.is(result.current.showReasoning, true);
+});
+
+test('useAgent - should add message with generated id and timestamp', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  let messageId: string = '';
+  act(() => {
+    messageId = result.current.addMessage({
+      role: 'user',
+      content: 'Test message'
     });
   });
 
-  describe('tool execution states', () => {
-    it('should identify tools that need approval', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  t.is(result.current.messages.length, 1);
+  t.is(result.current.messages[0].id, messageId);
+  t.truthy(result.current.messages[0].timestamp instanceof Date);
+  t.is(result.current.messages[0].role, 'user');
+  t.is(result.current.messages[0].content, 'Test message');
+});
 
-      act(() => {
-        result.current.sendMessage('Test');
-      });
+test('useAgent - should add message with reasoning', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-      const toolCallbacks = mockAgent.setToolCallbacks.mock.calls[0][0];
-
-      // Test dangerous tool
-      act(() => {
-        toolCallbacks.onToolStart('delete_file', { file_path: 'test.js' });
-      });
-
-      expect(result.current.currentToolExecution?.needsApproval).toBe(true);
-
-      // Test approval required tool
-      act(() => {
-        toolCallbacks.onToolStart('create_file', { file_path: 'test.js', content: 'test' });
-      });
-
-      expect(result.current.currentToolExecution?.needsApproval).toBe(true);
-
-      // Test safe tool
-      act(() => {
-        toolCallbacks.onToolStart('read_file', { file_path: 'test.js' });
-      });
-
-      expect(result.current.currentToolExecution?.needsApproval).toBe(false);
-    });
-
-    it('should handle tool execution status changes', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      act(() => {
-        result.current.sendMessage('Test');
-      });
-
-      const toolCallbacks = mockAgent.setToolCallbacks.mock.calls[0][0];
-
-      // Start tool
-      act(() => {
-        toolCallbacks.onToolStart('read_file', { file_path: 'test.js' });
-      });
-
-      expect(result.current.currentToolExecution?.status).toBe('pending');
-
-      // Complete tool
-      act(() => {
-        toolCallbacks.onToolEnd('read_file', { success: true });
-      });
-
-      expect(result.current.currentToolExecution).toBeNull();
+  act(() => {
+    result.current.addMessage({
+      role: 'assistant',
+      content: 'Response',
+      reasoning: 'This is why I responded this way'
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle empty message content', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
+  t.is(result.current.messages[0].reasoning, 'This is why I responded this way');
+});
 
-      act(() => {
-        result.current.addMessage({
-          role: 'user',
-          content: ''
-        });
-      });
+test('useAgent - should generate unique message ids', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
 
-      expect(result.current.messages[0].content).toBe('');
+  let id1: string = '';
+  let id2: string = '';
+  act(() => {
+    id1 = result.current.addMessage({
+      role: 'user',
+      content: 'Message 1'
     });
-
-    it('should handle multiple rapid message additions', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      act(() => {
-        for (let i = 0; i < 10; i++) {
-          result.current.addMessage({
-            role: 'user',
-            content: `Message ${i}`
-          });
-        }
-      });
-
-      expect(result.current.messages).toHaveLength(10);
-      expect(result.current.messages.map(m => m.content)).toEqual([
-        'Message 0', 'Message 1', 'Message 2', 'Message 3', 'Message 4',
-        'Message 5', 'Message 6', 'Message 7', 'Message 8', 'Message 9'
-      ]);
-    });
-
-    it('should handle callback functions being undefined', () => {
-      const { result } = renderHook(() => 
-        useAgent(mockAgent) // No callback functions provided
-      );
-
-      expect(() => {
-        result.current.sendMessage('Test');
-      }).not.toThrow();
-    });
-
-    it('should handle agent methods throwing errors', () => {
-      mockAgent.setApiKey.mockImplementation(() => {
-        throw new Error('Agent error');
-      });
-
-      const { result } = renderHook(() => 
-        useAgent(mockAgent)
-      );
-
-      expect(() => {
-        result.current.setApiKey('test-key');
-      }).toThrow('Agent error');
+    id2 = result.current.addMessage({
+      role: 'user',
+      content: 'Message 2'
     });
   });
+
+  t.not(id1, id2);
+  t.is(result.current.messages.length, 2);
+});
+
+test('useAgent - should identify tools that need approval', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  await act(async () => {
+    await result.current.sendMessage('Test');
+  });
+
+  const toolCallbacks = mockAgent.setToolCallbacks.getCall(0).args[0];
+
+  // Test dangerous tool
+  act(() => {
+    toolCallbacks.onToolStart('delete_file', { file_path: 'test.js' });
+  });
+
+  t.is(result.current.currentToolExecution?.needsApproval, true);
+
+  // Test approval required tool
+  act(() => {
+    toolCallbacks.onToolStart('create_file', { file_path: 'test.js', content: 'test' });
+  });
+
+  t.is(result.current.currentToolExecution?.needsApproval, true);
+
+  // Test safe tool
+  act(() => {
+    toolCallbacks.onToolStart('read_file', { file_path: 'test.js' });
+  });
+
+  t.is(result.current.currentToolExecution?.needsApproval, false);
+});
+
+test('useAgent - should handle tool execution status changes', async (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  await act(async () => {
+    await result.current.sendMessage('Test');
+  });
+
+  const toolCallbacks = mockAgent.setToolCallbacks.getCall(0).args[0];
+
+  // Start tool
+  act(() => {
+    toolCallbacks.onToolStart('read_file', { file_path: 'test.js' });
+  });
+
+  t.is(result.current.currentToolExecution?.status, 'pending');
+
+  // Complete tool
+  act(() => {
+    toolCallbacks.onToolEnd('read_file', { success: true });
+  });
+
+  t.is(result.current.currentToolExecution, null);
+});
+
+test('useAgent - should handle empty message content', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  act(() => {
+    result.current.addMessage({
+      role: 'user',
+      content: ''
+    });
+  });
+
+  t.is(result.current.messages[0].content, '');
+});
+
+test('useAgent - should handle multiple rapid message additions', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  act(() => {
+    for (let i = 0; i < 10; i++) {
+      result.current.addMessage({
+        role: 'user',
+        content: `Message ${i}`
+      });
+    }
+  });
+
+  t.is(result.current.messages.length, 10);
+  t.deepEqual(result.current.messages.map(m => m.content), [
+    'Message 0', 'Message 1', 'Message 2', 'Message 3', 'Message 4',
+    'Message 5', 'Message 6', 'Message 7', 'Message 8', 'Message 9'
+  ]);
+});
+
+test('useAgent - should handle callback functions being undefined', (t) => {
+  const { result } = renderHook(() => 
+    useAgent(mockAgent) // No callback functions provided
+  );
+
+  t.notThrows(() => {
+    result.current.sendMessage('Test');
+  });
+});
+
+test('useAgent - should handle agent methods throwing errors', (t) => {
+  mockAgent.setApiKey.throws(new Error('Agent error'));
+
+  const { result } = renderHook(() => 
+    useAgent(mockAgent)
+  );
+
+  t.throws(() => {
+    result.current.setApiKey('test-key');
+  }, { message: 'Agent error' });
 });

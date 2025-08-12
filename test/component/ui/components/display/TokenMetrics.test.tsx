@@ -1,292 +1,288 @@
 import React from 'react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import test from 'ava';
+import sinon from 'sinon';
+import { render, cleanup } from '@testing-library/react';
 import TokenMetrics from '@src/ui/components/display/TokenMetrics';
 
-describe('TokenMetrics', () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-	});
+let clock: sinon.SinonFakeTimers;
 
-	afterEach(() => {
-		vi.useRealTimers();
-	});
+test.beforeEach(() => {
+	clock = sinon.useFakeTimers();
+});
 
-	describe('rendering', () => {
-		it('should not render when inactive and no tokens', () => {
-			const { container } = render(
-				<TokenMetrics
-					isActive={false}
-					isPaused={false}
-					startTime={null}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+test.afterEach.always(() => {
+	cleanup();
+	if (clock) {
+		clock.restore();
+	}
+});
 
-			expect(container.firstChild).toBeNull();
-		});
+test('TokenMetrics - rendering - should not render when inactive and no tokens', (t) => {
+	const { container } = render(
+		<TokenMetrics
+			isActive={false}
+			isPaused={false}
+			startTime={null}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-		it('should render when active', () => {
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	t.is(container.firstChild, null);
+});
 
-			expect(getByText('0.0s')).toBeTruthy();
-			expect(getByText('0 tokens')).toBeTruthy();
-			expect(getByText('⚡ GroqThinking...')).toBeTruthy();
-		});
+test('TokenMetrics - rendering - should render when active', (t) => {
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-		it('should render when inactive but has tokens', () => {
-			const startTime = new Date(Date.now() - 5000);
-			const endTime = new Date();
-			
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={false}
-					isPaused={false}
-					startTime={startTime}
-					endTime={endTime}
-					pausedTime={0}
-					completionTokens={100}
-				/>
-			);
+	t.truthy(getByText('0.0s'));
+	t.truthy(getByText('0 tokens'));
+	t.truthy(getByText('⚡ GroqThinking...'));
+});
 
-			expect(getByText('5.0s')).toBeTruthy();
-			expect(getByText('100 tokens')).toBeTruthy();
-		});
+test('TokenMetrics - rendering - should render when inactive but has tokens', (t) => {
+	const startTime = new Date(Date.now() - 5000);
+	const endTime = new Date();
+	
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={false}
+			isPaused={false}
+			startTime={startTime}
+			endTime={endTime}
+			pausedTime={0}
+			completionTokens={100}
+		/>
+	);
 
-		it('should show paused status', () => {
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={true}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={50}
-				/>
-			);
+	t.truthy(getByText('5.0s'));
+	t.truthy(getByText('100 tokens'));
+});
 
-			expect(getByText('⏸ Waiting for approval...')).toBeTruthy();
-		});
-	});
+test('TokenMetrics - rendering - should show paused status', (t) => {
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={true}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={50}
+		/>
+	);
 
-	describe('time tracking', () => {
-		it('should update time every 100ms when active', () => {
-			const startTime = new Date(Date.now() - 1000);
-			
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={startTime}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	t.truthy(getByText('⏸ Waiting for approval...'));
+});
 
-			expect(getByText('1.0s')).toBeTruthy();
+test('TokenMetrics - time tracking - should update time every 100ms when active', (t) => {
+	const startTime = new Date(Date.now() - 1000);
+	
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={startTime}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-			// Advance timers carefully to avoid infinite loop
-			vi.advanceTimersByTime(100);
-			
-			// Clear all timers to prevent infinite loop
-			vi.clearAllTimers();
-		});
+	t.truthy(getByText('1.0s'));
 
-		it('should not update time when paused', () => {
-			const startTime = new Date(Date.now() - 1000);
-			
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={true}
-					startTime={startTime}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	// Advance timers carefully to avoid infinite loop
+	clock.tick(100);
+	
+	// Clear all timers to prevent infinite loop
+	clock.reset();
+});
 
-			const initialTime = getByText(/\d+\.\d+s/);
-			
-			vi.advanceTimersByTime(1000);
-			
-			expect(initialTime).toBeTruthy();
-		});
+test('TokenMetrics - time tracking - should not update time when paused', (t) => {
+	const startTime = new Date(Date.now() - 1000);
+	
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={true}
+			startTime={startTime}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-		it('should account for paused time', () => {
-			const startTime = new Date(Date.now() - 5000);
-			const pausedTime = 2000;
-			
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={startTime}
-					endTime={null}
-					pausedTime={pausedTime}
-					completionTokens={0}
-				/>
-			);
+	const initialTime = getByText(/\d+\.\d+s/);
+	
+	clock.tick(1000);
+	
+	t.truthy(initialTime);
+});
 
-			expect(getByText('3.0s')).toBeTruthy();
-		});
+test('TokenMetrics - time tracking - should account for paused time', (t) => {
+	const startTime = new Date(Date.now() - 5000);
+	const pausedTime = 2000;
+	
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={startTime}
+			endTime={null}
+			pausedTime={pausedTime}
+			completionTokens={0}
+		/>
+	);
 
-		it('should show final time when completed', () => {
-			const startTime = new Date(Date.now() - 10000);
-			const endTime = new Date(Date.now() - 2000);
-			const pausedTime = 1000;
-			
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={false}
-					isPaused={false}
-					startTime={startTime}
-					endTime={endTime}
-					pausedTime={pausedTime}
-					completionTokens={100}
-				/>
-			);
+	t.truthy(getByText('3.0s'));
+});
 
-			expect(getByText('7.0s')).toBeTruthy();
-		});
-	});
+test('TokenMetrics - time tracking - should show final time when completed', (t) => {
+	const startTime = new Date(Date.now() - 10000);
+	const endTime = new Date(Date.now() - 2000);
+	const pausedTime = 1000;
+	
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={false}
+			isPaused={false}
+			startTime={startTime}
+			endTime={endTime}
+			pausedTime={pausedTime}
+			completionTokens={100}
+		/>
+	);
 
-	describe('loading messages', () => {
-		it('should cycle through loading messages', () => {
-			const { getByText, rerender } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	t.truthy(getByText('7.0s'));
+});
 
-			expect(getByText('⚡ GroqThinking...')).toBeTruthy();
+test('TokenMetrics - loading messages - should cycle through loading messages', (t) => {
+	const { getByText, rerender } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-			vi.advanceTimersByTime(2000);
-			rerender(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	t.truthy(getByText('⚡ GroqThinking...'));
 
-			vi.advanceTimersByTime(2000);
-			rerender(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	clock.tick(2000);
+	rerender(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-			vi.advanceTimersByTime(2000);
-			rerender(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
-		});
+	clock.tick(2000);
+	rerender(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-		it('should reset loading message index when becoming active', () => {
-			const { getByText, rerender } = render(
-				<TokenMetrics
-					isActive={false}
-					isPaused={false}
-					startTime={null}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={100}
-				/>
-			);
+	clock.tick(2000);
+	rerender(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
+});
 
-			rerender(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={new Date()}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={100}
-				/>
-			);
+test('TokenMetrics - loading messages - should reset loading message index when becoming active', (t) => {
+	const { getByText, rerender } = render(
+		<TokenMetrics
+			isActive={false}
+			isPaused={false}
+			startTime={null}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={100}
+		/>
+	);
 
-			expect(getByText('⚡ GroqThinking...')).toBeTruthy();
-		});
-	});
+	rerender(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={new Date()}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={100}
+		/>
+	);
 
-	describe('edge cases', () => {
-		it('should handle null startTime', () => {
-			const { getByText } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={null}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={0}
-				/>
-			);
+	t.truthy(getByText('⚡ GroqThinking...'));
+});
 
-			expect(getByText('0.0s')).toBeTruthy();
-		});
+test('TokenMetrics - edge cases - should handle null startTime', (t) => {
+	const { getByText } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={null}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={0}
+		/>
+	);
 
-		it('should handle transition from active to inactive', () => {
-			const startTime = new Date(Date.now() - 3000);
-			const endTime = new Date();
-			
-			const { getByText, rerender } = render(
-				<TokenMetrics
-					isActive={true}
-					isPaused={false}
-					startTime={startTime}
-					endTime={null}
-					pausedTime={0}
-					completionTokens={50}
-				/>
-			);
+	t.truthy(getByText('0.0s'));
+});
 
-			expect(getByText('⚡ GroqThinking...')).toBeTruthy();
+test('TokenMetrics - edge cases - should handle transition from active to inactive', (t) => {
+	const startTime = new Date(Date.now() - 3000);
+	const endTime = new Date();
+	
+	const { getByText, rerender } = render(
+		<TokenMetrics
+			isActive={true}
+			isPaused={false}
+			startTime={startTime}
+			endTime={null}
+			pausedTime={0}
+			completionTokens={50}
+		/>
+	);
 
-			rerender(
-				<TokenMetrics
-					isActive={false}
-					isPaused={false}
-					startTime={startTime}
-					endTime={endTime}
-					pausedTime={0}
-					completionTokens={50}
-				/>
-			);
+	t.truthy(getByText('⚡ GroqThinking...'));
 
-			expect(getByText('3.0s')).toBeTruthy();
-		});
-	});
+	rerender(
+		<TokenMetrics
+			isActive={false}
+			isPaused={false}
+			startTime={startTime}
+			endTime={endTime}
+			pausedTime={0}
+			completionTokens={50}
+		/>
+	);
+
+	t.truthy(getByText('3.0s'));
 });

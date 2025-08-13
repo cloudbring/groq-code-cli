@@ -12,7 +12,8 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
-		"lint": "echo 'Linting not configured yet'",
+		"lint": "xo src/**/*.ts src/**/*.tsx",
+		"lint:test": "xo test/**/*.ts test/**/*.tsx --config=tsconfig.test.json",
 		"test": "ava",
 		"test:unit": "ava test/unit/**/*.test.ts",
 		"test:integration": "ava test/integration/**/*.test.ts",
@@ -46,6 +47,7 @@
 		"eslint-config-xo-react": "^0.27.0",
 		"eslint-plugin-react": "^7.32.2",
 		"eslint-plugin-react-hooks": "^4.6.0",
+		"esmock": "^2.6.8",
 		"ink-testing-library": "^3.0.0",
 		"jsdom": "^26.1.0",
 		"mock-fs": "^5.5.0",

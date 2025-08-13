@@ -1,12 +1,13 @@
 import test from 'ava';
 import sinon from 'sinon';
-import { Agent } from '@src/core/agent';
+import esmock from 'esmock';
 
 let mockGroqInstance: any;
 let mockConfigManager: any;
+let mockAgent: any;
 const originalEnv = process.env;
 
-test.beforeEach((t) => {
+test.beforeEach(async (t) => {
   // Setup mock instances
   mockGroqInstance = {
     chat: {
@@ -24,6 +25,22 @@ test.beforeEach((t) => {
     setDefaultModel: sinon.stub()
   };
   
+  // Mock Groq SDK
+  const MockGroq = sinon.stub().returns(mockGroqInstance);
+  
+  // Mock the Agent module with esmock for proper ES module mocking
+  const { Agent } = await esmock('@src/core/agent', {
+    'groq-sdk': MockGroq,
+    '@src/utils/local-settings': {
+      ConfigManager: sinon.stub().returns(mockConfigManager)
+    }
+  });
+  
+  mockAgent = Agent;
+  t.context.Agent = Agent;
+  t.context.mockGroqInstance = mockGroqInstance;
+  t.context.mockConfigManager = mockConfigManager;
+  
   // Clear environment variables
   process.env = { ...originalEnv };
   delete process.env.GROQ_API_KEY;
@@ -34,67 +51,74 @@ test.afterEach.always((t) => {
   process.env = originalEnv;
 });
 
-// Note: Due to ES module limitations with sinon, these tests are simplified
-// In a real conversion, you would need proxyquire, esmock, or similar tools
-// for proper module mocking
-
 test('Agent.create - should create agent with provided model', async (t) => {
-  // Since we can't easily mock ES modules with sinon, we'll test what we can
-  try {
-    const agent = await Agent.create('llama-3.1-8b-instant', 0.7, null);
-    t.true(agent instanceof Agent);
-    // Note: The actual model may be overridden by config defaults in real implementation
-    t.true(typeof agent.getCurrentModel() === 'string');
-  } catch (error) {
-    // Expected to fail without API key in this simplified version
-    t.pass('Test acknowledges mocking limitations with ES modules');
-  }
+  const Agent = t.context.Agent;
+  t.context.mockConfigManager.getDefaultModel.returns(null);
+  
+  const agent = await Agent.create('llama-3.1-8b-instant', 0.7, null);
+  
+  t.true(agent instanceof Agent);
+  t.is(agent.getCurrentModel(), 'llama-3.1-8b-instant');
 });
 
 test('Agent.create - should use provided model if no default in config', async (t) => {
-  try {
-    const agent = await Agent.create('test-model', 0.5, null);
-    // Note: The actual model may be overridden by config defaults in real implementation
-    t.true(typeof agent.getCurrentModel() === 'string');
-  } catch (error) {
-    t.pass('Test acknowledges mocking limitations with ES modules');
-  }
+  const Agent = t.context.Agent;
+  t.context.mockConfigManager.getDefaultModel.returns(null);
+  
+  const agent = await Agent.create('test-model', 0.5, null);
+  
+  t.true(agent instanceof Agent);
+  t.is(agent.getCurrentModel(), 'test-model');
 });
 
 test('Agent.create - should accept custom system message', async (t) => {
-  try {
-    const agent = await Agent.create('test-model', 0.5, 'Custom system message');
-    t.true(agent instanceof Agent);
-  } catch (error) {
-    t.pass('Test acknowledges mocking limitations with ES modules');
-  }
+  const Agent = t.context.Agent;
+  t.context.mockConfigManager.getDefaultModel.returns(null);
+  
+  const agent = await Agent.create('test-model', 0.5, 'Custom system message');
+  
+  t.true(agent instanceof Agent);
+  t.is(agent.getCurrentModel(), 'test-model');
 });
 
 test('API Key Management - should have setApiKey method', async (t) => {
-  try {
-    const agent = await Agent.create('test-model', 0.5, null);
-    t.true(typeof agent.setApiKey === 'function');
-  } catch (error) {
-    t.pass('Test acknowledges mocking limitations with ES modules');
-  }
+  const Agent = t.context.Agent;
+  t.context.mockConfigManager.getDefaultModel.returns(null);
+  
+  const agent = await Agent.create('test-model', 0.5, null);
+  
+  t.true(typeof agent.setApiKey === 'function');
+  
+  // Test that setting API key works
+  agent.setApiKey('test-key');
+  // API key should be set internally (we can't directly access it but no error should occur)
+  t.pass('API key set without error');
 });
 
 test('API Key Management - should have saveApiKey method', async (t) => {
-  try {
-    const agent = await Agent.create('test-model', 0.5, null);
-    t.true(typeof agent.saveApiKey === 'function');
-  } catch (error) {
-    t.pass('Test acknowledges mocking limitations with ES modules');
-  }
+  const Agent = t.context.Agent;
+  t.context.mockConfigManager.getDefaultModel.returns(null);
+  
+  const agent = await Agent.create('test-model', 0.5, null);
+  
+  t.true(typeof agent.saveApiKey === 'function');
+  
+  // Test that saving API key calls config manager
+  agent.saveApiKey('test-key');
+  t.true(t.context.mockConfigManager.setApiKey.calledWith('test-key'));
 });
 
 test('API Key Management - should have clearApiKey method', async (t) => {
-  try {
-    const agent = await Agent.create('test-model', 0.5, null);
-    t.true(typeof agent.clearApiKey === 'function');
-  } catch (error) {
-    t.pass('Test acknowledges mocking limitations with ES modules');
-  }
+  const Agent = t.context.Agent;
+  t.context.mockConfigManager.getDefaultModel.returns(null);
+  
+  const agent = await Agent.create('test-model', 0.5, null);
+  
+  t.true(typeof agent.clearApiKey === 'function');
+  
+  // Test that clearing API key calls config manager
+  agent.clearApiKey();
+  t.true(t.context.mockConfigManager.clearApiKey.called);
 });
 
 test('Model Management - should have setModel method', async (t) => {

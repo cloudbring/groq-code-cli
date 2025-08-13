@@ -5,172 +5,249 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { writeFile, createDirectory, deleteFile, displayTree, shouldIgnore } from '@src/utils/file-ops';
 
+// Use serial tests to avoid conflicts with fs stubbing
+const serialTest = test.serial;
+
 // Setup filesystem mocks before each test
-test.beforeEach(() => {
-	sinon.restore();
-	mockFs.restore();
-	
-	// Setup mock filesystem with test files and directories
-	mockFs({
-		'/test': {
-			'file.txt': 'existing content',
-			'dir': {}
-		},
-		'/mockdir': {
-			'dir1': {},
-			'file1.txt': 'content1',
-			'file2.js': 'content2',
-			'.hidden': 'hidden content',
-			'visible.txt': 'visible content',
-			'.env': 'env content'
-		}
-	});
+serialTest.beforeEach((t) => {
+	// Create a test context with a sandbox
+	t.context.sandbox = sinon.createSandbox();
 });
 
-test.afterEach.always(() => {
+serialTest.afterEach.always((t) => {
+	// Restore the sandbox after each test
+	if (t.context.sandbox) {
+		t.context.sandbox.restore();
+	}
+	// Also restore global sinon just in case
 	sinon.restore();
+	// Restore mock-fs
 	mockFs.restore();
 });
 
-test('writeFile - should write file successfully', async (t) => {
+serialTest('writeFile - should write file successfully', async (t) => {
+	// Mock fs.promises.mkdir to succeed
+	const mkdirStub = t.context.sandbox.stub(fs.promises, 'mkdir').resolves();
+	// Mock fs.promises.writeFile to succeed
+	const writeFileStub = t.context.sandbox.stub(fs.promises, 'writeFile').resolves();
+
 	const result = await writeFile('/test/newfile.txt', 'content');
 	
 	t.is(result, true);
 	
-	// Verify the file was actually written
-	const written = await fs.promises.readFile('/test/newfile.txt', 'utf-8');
-	t.is(written, 'content');
+	// Verify mkdir was called with correct path
+	t.true(mkdirStub.calledWith('/test', { recursive: true }));
+	// Verify writeFile was called with correct parameters
+	t.true(writeFileStub.calledWith('/test/newfile.txt', 'content', 'utf-8'));
 });
 
-test('writeFile - should return false on error', async (t) => {
-	// Try to write to a path that will cause an error (like writing to a directory)
+serialTest('writeFile - should return false on error', async (t) => {
+	// Mock fs.promises.mkdir to throw an error
+	t.context.sandbox.stub(fs.promises, 'mkdir').rejects(new Error('Permission denied'));
+	
 	const result = await writeFile('/test/dir', 'content');
 	
 	t.is(result, false);
 });
 
-test('writeFile - should handle force and backup parameters', async (t) => {
+serialTest('writeFile - should handle force and backup parameters', async (t) => {
+	const mkdirStub = t.context.sandbox.stub(fs.promises, 'mkdir').resolves();
+	const writeFileStub = t.context.sandbox.stub(fs.promises, 'writeFile').resolves();
+
 	const result = await writeFile('/test/file.txt', 'new content', true, true);
 	
 	t.is(result, true);
 	
-	// Verify the file content was updated
-	const written = await fs.promises.readFile('/test/file.txt', 'utf-8');
-	t.is(written, 'new content');
+	// Verify mkdir was called
+	t.true(mkdirStub.calledWith('/test', { recursive: true }));
+	// Verify writeFile was called with correct parameters
+	t.true(writeFileStub.calledWith('/test/file.txt', 'new content', 'utf-8'));
 });
 
-test('createDirectory - should create directory successfully', async (t) => {
+serialTest('createDirectory - should create directory successfully', async (t) => {
+	// Mock fs.promises.mkdir to succeed
+	const mkdirStub = t.context.sandbox.stub(fs.promises, 'mkdir').resolves();
+
 	const result = await createDirectory('/test/newdir');
 	
 	t.is(result, true);
 	
-	// Verify the directory was created
-	const stats = await fs.promises.stat('/test/newdir');
-	t.true(stats.isDirectory());
+	// Verify mkdir was called with correct parameters
+	t.true(mkdirStub.calledWith('/test/newdir', { recursive: true }));
 });
 
-test('createDirectory - should return false on error', async (t) => {
-	// Mock-fs doesn't easily simulate permission errors, so this test
-	// would need to be adapted or the function behavior examined
-	// For now, test creating over an existing file (which should fail)
-	const result = await createDirectory('/test/file.txt'); // file.txt already exists as a file
+serialTest('createDirectory - should return false on error', async (t) => {
+	// Mock fs.promises.mkdir to throw an error
+	t.context.sandbox.stub(fs.promises, 'mkdir').rejects(new Error('Permission denied'));
+	
+	const result = await createDirectory('/test/file.txt');
 	
 	t.is(result, false);
 });
 
-test('deleteFile - should delete file when force is true', async (t) => {
+serialTest('deleteFile - should delete file when force is true', async (t) => {
+	// Mock fs.promises.stat to return file stats
+	const statsStub = t.context.sandbox.stub(fs.promises, 'stat').resolves({
+		isFile: () => true,
+		isDirectory: () => false
+	} as any);
+	// Mock fs.promises.unlink to succeed
+	const unlinkStub = t.context.sandbox.stub(fs.promises, 'unlink').resolves();
+
 	const result = await deleteFile('/test/file.txt', true);
 	
 	t.is(result, true);
 	
-	// Verify the file was deleted
-	const exists = await fs.promises.access('/test/file.txt').then(() => true).catch(() => false);
-	t.false(exists);
+	// Verify stat was called
+	t.true(statsStub.calledWith(path.resolve('/test/file.txt')));
+	// Verify unlink was called
+	t.true(unlinkStub.calledWith(path.resolve('/test/file.txt')));
 });
 
-test('deleteFile - should delete directory when force is true', async (t) => {
+serialTest('deleteFile - should delete directory when force is true', async (t) => {
+	// Mock fs.promises.stat to return directory stats
+	const statsStub = t.context.sandbox.stub(fs.promises, 'stat').resolves({
+		isFile: () => false,
+		isDirectory: () => true
+	} as any);
+	// Mock fs.promises.rm to succeed
+	const rmStub = t.context.sandbox.stub(fs.promises, 'rm').resolves();
+
 	const result = await deleteFile('/test/dir', true);
 	
 	t.is(result, true);
 	
-	// Verify the directory was deleted
-	const exists = await fs.promises.access('/test/dir').then(() => true).catch(() => false);
-	t.false(exists);
+	// Verify stat was called
+	t.true(statsStub.calledWith(path.resolve('/test/dir')));
+	// Verify rm was called with recursive option
+	t.true(rmStub.calledWith(path.resolve('/test/dir'), { recursive: true }));
 });
 
-test('deleteFile - should return false when force is false', async (t) => {
+serialTest('deleteFile - should return false when force is false', async (t) => {
+	// Mock fs.promises.stat to return file stats
+	t.context.sandbox.stub(fs.promises, 'stat').resolves({
+		isFile: () => true,
+		isDirectory: () => false
+	} as any);
+	// Create unlink stub but it shouldn't be called
+	const unlinkStub = t.context.sandbox.stub(fs.promises, 'unlink').resolves();
+
 	const result = await deleteFile('/test/file.txt', false);
 	
 	t.is(result, false);
 	
-	// File should still exist
-	const exists = await fs.promises.access('/test/file.txt').then(() => true).catch(() => false);
-	t.true(exists);
+	// Verify that no unlink was called since force is false
+	t.false(unlinkStub.called);
 });
 
-test('deleteFile - should return false when file does not exist', async (t) => {
+serialTest('deleteFile - should return false when file does not exist', async (t) => {
+	// Mock fs.promises.stat to throw ENOENT error
+	const error = new Error('File not found') as any;
+	error.code = 'ENOENT';
+	t.context.sandbox.stub(fs.promises, 'stat').rejects(error);
+	
 	const result = await deleteFile('/test/nonexistent.txt', true);
 	
 	t.is(result, false);
 });
 
-test('deleteFile - should return false on other errors', async (t) => {
-	// Create a read-only directory to simulate permission errors
-	mockFs.restore();
-	mockFs({
-		'/readonly': mockFs.directory({
-			mode: parseInt('444', 8),
-			items: {
-				'file.txt': 'content'
-			}
-		})
-	});
+serialTest('deleteFile - should return false on other errors', async (t) => {
+	// Mock fs.promises.stat to throw a permission error
+	const error = new Error('Permission denied') as any;
+	error.code = 'EACCES';
+	t.context.sandbox.stub(fs.promises, 'stat').rejects(error);
 	
 	const result = await deleteFile('/readonly/file.txt', true);
 	
 	t.is(result, false);
 });
 
-test('displayTree - should display directory tree', async (t) => {
+serialTest('displayTree - should display directory tree', async (t) => {
+	// Mock fs.promises.access to indicate directory exists
+	t.context.sandbox.stub(fs.promises, 'access').resolves();
+	
+	// Mock fs.promises.readdir to return mock directory contents
+	const mockItems = [
+		{ name: 'dir1', isDirectory: () => true, isFile: () => false },
+		{ name: 'file1.txt', isDirectory: () => false, isFile: () => true },
+		{ name: 'file2.js', isDirectory: () => false, isFile: () => true },
+		{ name: 'visible.txt', isDirectory: () => false, isFile: () => true },
+		{ name: '.hidden', isDirectory: () => false, isFile: () => true },
+		{ name: '.env', isDirectory: () => false, isFile: () => true }
+	];
+	t.context.sandbox.stub(fs.promises, 'readdir').resolves(mockItems as any);
+
 	const result = await displayTree('/mockdir', false);
 	
-	t.truthy(result);
+	t.truthy(result, `displayTree should return content, got: "${result}"`);
 	t.true(result.includes('dir1'));
 	t.true(result.includes('file1.txt'));
 	t.true(result.includes('file2.js'));
 	t.true(result.includes('visible.txt'));
 });
 
-test('displayTree - should handle directory not found', async (t) => {
+serialTest('displayTree - should handle directory not found', async (t) => {
+	// Mock fs.promises.access to throw an error (directory not found)
+	t.context.sandbox.stub(fs.promises, 'access').rejects(new Error('ENOENT'));
+	
 	const result = await displayTree('/nonexistent', false);
 	
 	t.is(result, '');
 });
 
-test('displayTree - should filter hidden files when showHidden is false', async (t) => {
+serialTest('displayTree - should filter hidden files when showHidden is false', async (t) => {
+	// Mock fs.promises.access to indicate directory exists
+	t.context.sandbox.stub(fs.promises, 'access').resolves();
+	
+	// Mock fs.promises.readdir to return mock directory contents
+	const mockItems = [
+		{ name: 'dir1', isDirectory: () => true, isFile: () => false },
+		{ name: 'file1.txt', isDirectory: () => false, isFile: () => true },
+		{ name: 'file2.js', isDirectory: () => false, isFile: () => true },
+		{ name: 'visible.txt', isDirectory: () => false, isFile: () => true },
+		{ name: '.hidden', isDirectory: () => false, isFile: () => true },
+		{ name: '.env', isDirectory: () => false, isFile: () => true }
+	];
+	t.context.sandbox.stub(fs.promises, 'readdir').resolves(mockItems as any);
+
 	const result = await displayTree('/mockdir', false);
 	
-	t.truthy(result);
+	t.truthy(result, `displayTree should return content, got: "${result}"`);
 	t.false(result.includes('.hidden'));
-	t.true(result.includes('visible.txt'));
+	t.false(result.includes('.env'));
+	t.true(result.includes('dir1'));
+	t.true(result.includes('file1.txt'));
 });
 
-test('displayTree - should show hidden files when showHidden is true', async (t) => {
+serialTest('displayTree - should show hidden files when showHidden is true', async (t) => {
+	// Mock fs.promises.access to indicate directory exists
+	t.context.sandbox.stub(fs.promises, 'access').resolves();
+	
+	// Mock fs.promises.readdir to return mock directory contents
+	const mockItems = [
+		{ name: 'dir1', isDirectory: () => true, isFile: () => false },
+		{ name: 'file1.txt', isDirectory: () => false, isFile: () => true },
+		{ name: '.hidden', isDirectory: () => false, isFile: () => true },
+		{ name: '.env', isDirectory: () => false, isFile: () => true },
+		{ name: '.gitignore', isDirectory: () => false, isFile: () => true }
+	];
+	t.context.sandbox.stub(fs.promises, 'readdir').resolves(mockItems as any);
+
 	const result = await displayTree('/mockdir', true);
 	
-	t.truthy(result);
-	t.true(result.includes('.hidden'));
-	t.true(result.includes('visible.txt'));
+	t.truthy(result, `displayTree should return content, got: "${result}"`);
+	// .hidden should NOT appear because it's filtered by shouldIgnore
+	t.false(result.includes('.hidden'));
+	// .env and .gitignore are allowed hidden files, so they should appear when showHidden is true
+	t.true(result.includes('.env'));
+	t.true(result.includes('.gitignore'));
 });
 
-test('displayTree - should handle errors during readdir', async (t) => {
-	// Create a directory with no read permissions
-	mockFs.restore();
-	mockFs({
-		'/noaccess': mockFs.directory({
-			mode: parseInt('000', 8)
-		})
-	});
+serialTest('displayTree - should handle errors during readdir', async (t) => {
+	// Mock fs.promises.access to indicate directory exists
+	t.context.sandbox.stub(fs.promises, 'access').resolves();
+	// Mock fs.promises.readdir to throw a permission error
+	t.context.sandbox.stub(fs.promises, 'readdir').rejects(new Error('Permission denied'));
 	
 	const result = await displayTree('/noaccess', false);
 	

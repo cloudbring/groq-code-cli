@@ -1,33 +1,11 @@
 import test from 'ava';
 import sinon from 'sinon';
 import { CommandContext } from '@src/commands/base';
-
-// Mock getAvailableCommands before importing help command
-import * as commandsIndex from '@src/commands/index';
-sinon.stub(commandsIndex, 'getAvailableCommands').returns([
-  { command: 'help', description: 'Show help and available commands' },
-  { command: 'login', description: 'Login with Groq API key' },
-  { command: 'model', description: 'Select AI model' },
-  { command: 'clear', description: 'Clear chat history' },
-  { command: 'reasoning', description: 'Toggle reasoning mode' },
-]);
-
-// Now import help command
 import { helpCommand } from '@src/commands/definitions/help';
 
-const getAvailableCommandsStub = commandsIndex.getAvailableCommands as sinon.SinonStub;
-
-test.afterEach(() => {
-  if (getAvailableCommandsStub) {
-    getAvailableCommandsStub.returns([
-      { command: 'help', description: 'Show help and available commands' },
-      { command: 'login', description: 'Login with Groq API key' },
-      { command: 'model', description: 'Select AI model' },
-      { command: 'clear', description: 'Clear chat history' },
-      { command: 'reasoning', description: 'Toggle reasoning mode' },
-    ]);
-  }
-});
+// Note: We're testing helpCommand with the actual getAvailableCommands implementation
+// since ES modules make it difficult to stub. The help command will show the actual
+// available commands, which is fine for testing purposes.
 
 test('helpCommand - should have correct command properties', (t) => {
   t.is(helpCommand.command, 'help');

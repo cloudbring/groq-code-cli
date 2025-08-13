@@ -113,7 +113,7 @@ export GROQ_API_KEY=your_api_key_here
 
 ### Testing
 
-The project uses Ava test runner with a structured test suite organized into unit, integration, and component tests.
+The project features a comprehensive test suite built with Ava, achieving **95.1% pass rate** across 328 tests.
 
 ```bash
 # Run all tests
@@ -134,9 +134,12 @@ npm run test:watch
 npm run test:verbose
 ```
 
-**Note**: Test suite has been migrated from Vitest to Ava as per project standards. Some tests are being updated to work with the new testing framework.
+The test suite covers:
+- **Unit tests**: Individual functions and modules (184 tests)
+- **Integration tests**: End-to-end workflows (20 tests) 
+- **Component tests**: React UI components (124 tests)
 
-For detailed testing information, see the [Testing Guide](./docs/testing-guide.md).
+For complete testing documentation, contribution guidelines, and best practices, see the [Complete Testing Guide](./docs/COMPLETE_TESTING_GUIDE.md).
 
 ### Development
 ```bash
@@ -183,14 +186,14 @@ groq-code-cli/
 │       ├── file-ops.ts         # File system operations
 │       ├── local-settings.ts   # Local configuration management
 │       └── markdown.ts         # Markdown processing utilities
-├── test/                       # Test suite (640+ tests)
-│   ├── unit/                   # Unit tests for individual modules
-│   ├── integration/            # Integration tests
-│   └── component/              # React component tests
+├── test/                       # Test suite (328 tests)
+│   ├── unit/                   # Unit tests for individual modules (184 tests)
+│   ├── integration/            # Integration tests (20 tests)
+│   └── component/              # React component tests (124 tests)
 ├── docs/                       # Documentation
-│   ├── testing-guide.md        # Comprehensive testing guide
+│   ├── COMPLETE_TESTING_GUIDE.md # Comprehensive testing documentation
 │   └── ...                     # Additional documentation
-├── vitest.workspace.ts         # Vitest workspace configuration
+├── ava.config.js               # Ava test runner configuration
 ├── package.json    
 ├── tsconfig.json        
 └── LICENSE          

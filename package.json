@@ -63,15 +63,21 @@
 		"xo": "^1.2.1"
 	},
 	"ava": {
+		"typescript": {
+			"rewritePaths": {
+				"@src/": "src/"
+			},
+			"compile": "tsc"
+		},
 		"extensions": {
-			"ts": "module",
 			"tsx": "module"
 		},
 		"nodeArguments": [
-			"--loader=ts-node/esm"
+			"--import=tsx"
 		],
 		"files": [
-			"src/**/*.test.ts",
+			"test/**/*.test.*",
+			"src/**/*.test.*",
 			"!**/*.d.ts"
 		]
 	},
